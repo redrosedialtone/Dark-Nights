@@ -1,4 +1,4 @@
-﻿using Nebula;
+using Nebula;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +19,7 @@ namespace DarkNights
         #endregion
 
         public static int SEED;
+        public static int CHUNK_SIZE = 25;
         public (int X, int Y) Size => ((Maximum.X - Minimum.X), (Maximum.Y - Minimum.Y));
         public (int X, int Y) Minimum;
         public (int X, int Y) Maximum;
@@ -38,7 +39,7 @@ namespace DarkNights
 
         public void GenerateChunks()
         {
-            log.Info($"> In the first moments, Nebula created a world {Size.X * Size.Y * WorldSystem.CHUNK_SIZE} tiles large... ");
+            log.Info($"> In the first moments, Nebula created a world {Size.X * Size.Y * CHUNK_SIZE} tiles large... ");
             for (int x = Minimum.X; x < Maximum.X; x++)
             {
                 for (int y = Minimum.Y; y < Maximum.Y; y++)

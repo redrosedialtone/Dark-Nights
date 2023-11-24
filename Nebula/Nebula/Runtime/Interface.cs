@@ -17,11 +17,11 @@ namespace Nebula.Main
     {
         private static readonly NLog.Logger log = NLog.LogManager.GetCurrentClassLogger();
         public static Interface Access;
-        private Runtime game;
+        private NebulaRuntime game;
 
         private List<IUIObject> DrawnUIPerFrame = new List<IUIObject>();
 
-        public void Create(Runtime game)
+        public void Create(NebulaRuntime game)
         {
             this.game = game;
             Access = this;

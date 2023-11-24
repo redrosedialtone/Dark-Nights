@@ -182,7 +182,7 @@ namespace Nebula.Main
         private KeyboardInputMap kbInput;
         public static DefaultCtxt DefaultCtxt;
 
-        public void Create(Runtime game)
+        public void Create(NebulaRuntime game)
         {
             Access = this;
             PointerListeners = new List<IPointerEventListener>();

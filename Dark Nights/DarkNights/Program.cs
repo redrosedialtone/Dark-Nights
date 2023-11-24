@@ -6,8 +6,10 @@ using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 using NLog;
 using System.Threading;
+using Nebula;
+using Nebula.Main;
 
-namespace Nebula.Main
+namespace DarkNights
 {
     /// <summary>
     /// The main class.
@@ -24,8 +26,9 @@ namespace Nebula.Main
         {
             Thread debugThread = new Thread(DebugOutput);
             debugThread.Start();
-            Logger.Info("Game Init..");
-            using (var engine = new NebulaRuntime())
+            Logger.Info("Engine Init..");
+            
+            using (var engine = new ApplicationController())
             {
                 engine.Run();
             }
@@ -40,7 +43,7 @@ namespace Nebula.Main
             Console.Title = "Nebula Debug Output";
             Console.WriteLine("[DEBUG OUTPUT]");
             bool _exec = true;
-            do
+            do 
             {
                 var com = Console.ReadLine();
                 if (com == "EXIT")
@@ -72,12 +75,12 @@ namespace Nebula.Main
                 case DebugCommands.EXIT:
                     break;
                 case DebugCommands.SETLOG:
-                    if (args.Length > 1)
+                    if(args.Length > 1)
                     {
                         Console.WriteLine($"Setting Global Log Level To .. {args[1]}");
                     }
                     else { Console.WriteLine($"FORMAT: SETLOG [LEVEL]"); }
-
+                    
                     break;
                 default:
                     break;

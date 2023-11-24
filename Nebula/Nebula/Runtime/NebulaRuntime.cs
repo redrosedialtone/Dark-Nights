@@ -10,16 +10,21 @@ using Microsoft.Xna.Framework.Content;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Nebula.Systems;
+using System.Xml.Linq;
 
 namespace Nebula.Main
 {
-    public class Runtime : Game
+    public class NebulaRuntime : IDisposable
     {
-        private static readonly NLog.Logger log = NLog.LogManager.GetLogger("RUNTIME");
-        public static GraphicsDeviceManager GraphicsDeviceMgr;
-        public static ContentManager GameContent => Access.Content;
-        public static Runtime Access;
-        public static string dataPath;
+        private static readonly NLog.Logger log = NLog.LogManager.GetLogger("ENGINE");
+
+
+        public static NebulaRuntime Access;
+        public static IApplicationController Game;
+        public static string dataPath => Game.DataPath;
+        public static ContentManager Content => Game.Content;
+        public static GraphicsDeviceManager GraphicsDeviceMgr => Game.GraphicsDeviceMgr;
+        public static GraphicsDevice GraphicsDevice => Game.GraphicsDevice;
 
         private IControl[] Controls;
 
@@ -27,14 +32,22 @@ namespace Nebula.Main
         private DrawCallGizmo drawCallGizmo;
         private OriginGizmo originGizmo;
 
-        public Runtime()
+        public NebulaRuntime()
         {
             Access = this;
-            log.Info("Runtime Executed...");
+        }
 
-            GraphicsDeviceMgr = new GraphicsDeviceManager(this);
-            Content.RootDirectory = "Content";
-            Controls = new IControl[8];
+        public void Initialize(IApplicationController Controller)
+        {
+            Game = Controller;
+            log.Info("Initializing Runtime Controls...");
+            if (Game == null)
+            {
+                log.Error("!Engine not linked to game; Breaking!");
+                throw new NullReferenceException();
+            }
+
+            Controls = new IControl[7];
             Controls[0] = new Graphics();
             Controls[1] = new Interface();
             Controls[2] = new Input();
@@ -42,7 +55,6 @@ namespace Nebula.Main
             Controls[4] = new Resources(Content);
             Controls[5] = new Cursor();
             Controls[6] = new Camera();
-            Controls[7] = new ApplicationController();
             Controls[0].Create(this);
             Controls[1].Create(this);
             Controls[2].Create(this);
@@ -50,13 +62,6 @@ namespace Nebula.Main
             Controls[4].Create(this);
             Controls[5].Create(this);
             Controls[6].Create(this);
-            Controls[7].Create(this);
-            IsMouseVisible = false; 
-        }
-
-        protected override void Initialize()
-        {
-            log.Info("Initializing Runtime Controls...");
             foreach (var control in Controls)
             {
                 control.Initialise();
@@ -71,11 +76,9 @@ namespace Nebula.Main
 
             originGizmo = new OriginGizmo();
             originGizmo.SetDrawGizmo(false);
-
-            base.Initialize();
         }
 
-        protected override void LoadContent()
+        public void LoadContent()
         {
             foreach (var control in Controls)
             {
@@ -83,50 +86,44 @@ namespace Nebula.Main
             }
         }
 
-        protected override void UnloadContent()
+        public void UnloadContent()
         {
             foreach (var control in Controls)
             {
                 control.UnloadContent();
             }
-            Content.Unload();
+            
         }
 
-        protected override void Update(GameTime gameTime)
+        public void Update(GameTime gameTime)
         {
-            if (IsActive)
+            foreach (var control in Controls)
             {
-                foreach (var control in Controls)
-                {
-                    control.Update(gameTime);
-                }
-
-                base.Update(gameTime);
-            }
-            if (Keyboard.GetState().IsKeyDown(Keys.Escape))
-            {
-                log.Info("Goodbye Cruel World!");
-                ExitApplication();
+                control.Update(gameTime);
             }
         }
 
-        protected override void Draw(GameTime gameTime)
+        public void Draw(GameTime gameTime)
         {
-            if (IsActive)
+            foreach (var control in Controls)
             {
-                foreach (var control in Controls)
-                {
-                    control.Draw(gameTime);
-                }
-                base.Draw(gameTime);
+                control.Draw(gameTime);
             }
         }
-
-        public void ExitApplication()
+        public void Run()
         {
-            log.Info("> APPLICATION CLOSED <");
-            NLog.LogManager.Shutdown();
-            Exit();
+            throw new NotImplementedException();
         }
+        public void Dispose()
+        {
+            throw new NotImplementedException();
+        }
+
+        //public void ExitApplication()
+        //{
+        //    log.Info("> APPLICATION CLOSED <");
+        //    NLog.LogManager.Shutdown();
+        //    Exit();
+        //}
     }
 }

@@ -11,14 +11,14 @@ namespace Nebula.Main
 
         public static ContentManager Content => Access._contentManager;
         private readonly ContentManager _contentManager;
-        private Runtime RUNTIME;
+        private NebulaRuntime RUNTIME;
 
         public Resources(ContentManager contentManager)
         {
             _contentManager = contentManager;
         }
 
-        public void Create(Runtime game)
+        public void Create(NebulaRuntime game)
         {
             log.Info("[RESOURCES]");
             RUNTIME = game;

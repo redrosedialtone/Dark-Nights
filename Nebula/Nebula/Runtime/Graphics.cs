@@ -23,8 +23,8 @@ namespace Nebula.Main
 
         public static SpriteBatch SpriteBatch => Access._spriteBatch;
 
-        public GraphicsDeviceManager GraphicsDeviceMngr => Runtime.GraphicsDeviceMgr;
-        public GraphicsDevice GraphicsDevice => RUNTIME.GraphicsDevice;
+        public GraphicsDeviceManager GraphicsDeviceMngr => NebulaRuntime.GraphicsDeviceMgr;
+        public GraphicsDevice GraphicsDevice => NebulaRuntime.GraphicsDevice;
         public static int SCREEN_WIDTH = (int)(GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width);
         public static int SCREEN_HEIGHT = (int)(GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height);
         public static int SCREEN_ASPECT => SCREEN_WIDTH / SCREEN_HEIGHT;
@@ -38,7 +38,7 @@ namespace Nebula.Main
         private List<ISpriteBatchDraw> spriteBatchCalls = new List<ISpriteBatchDraw>();
         private Stack<SpriteBatchRenderer> textureBuffer = new Stack<SpriteBatchRenderer>();
 
-        private Runtime RUNTIME;
+        private NebulaRuntime RUNTIME;
         private SpriteBatch _spriteBatch;
         private RenderTarget2D renderTarget;
         private Texture2D circleTexture;
@@ -46,7 +46,7 @@ namespace Nebula.Main
         //Texture2D ballTexture;
 
 
-        public void Create(Runtime game)
+        public void Create(NebulaRuntime game)
         {
             RUNTIME = game;
             Access = this;
@@ -64,7 +64,7 @@ namespace Nebula.Main
 
         public void LoadContent()
         {
-            _spriteBatch = new SpriteBatch(RUNTIME.GraphicsDevice);
+            _spriteBatch = new SpriteBatch(NebulaRuntime.GraphicsDevice);
             circleTexture = Resources.Load<Texture2D>("Sprites/hollowCircle");
             filledCircleTexture = Resources.Load<Texture2D>("Sprites/filledCircle");
             //ballTexture = RUNTIME.Content.Load<Texture2D>("DesignButtonLogo");

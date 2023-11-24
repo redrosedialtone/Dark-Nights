@@ -20,24 +20,26 @@
 /processorParam:TextureFormat=Compressed
 /build:FONT/Constantina.spritefont
 
-#begin FONT/VT323.spritefont
+#begin FONT/Constantina.spritefont
 /importer:FontDescriptionImporter
 /processor:FontDescriptionProcessor
 /processorParam:PremultiplyAlpha=True
 /processorParam:TextureFormat=Compressed
-/build:FONT/VT323.spritefont
+/build:FONT/Constantina.spritefont
 
-#begin Sprites/Cross.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
+#begin FONT/Constantina.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
 /processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:Sprites/Cross.png
+/processorParam:TextureFormat=Compressed
+/build:FONT/Constantina.spritefont
+
+#begin FONT/Constantina.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/build:FONT/Constantina.spritefont
 
 #begin Sprites/Cross.png
 /importer:TextureImporter

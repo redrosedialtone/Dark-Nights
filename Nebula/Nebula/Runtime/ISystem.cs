@@ -18,7 +18,7 @@ namespace Nebula.Systems
     public abstract class Manager : IManager
     {
         public bool Initialized { get; protected set; }
-        public virtual void Init() { Initialized = true; ApplicationController.Get.Initialized(this); }
+        public abstract void Init();
         public virtual void OnInitialized() { }
         public virtual void Tick() { }
     }

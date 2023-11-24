@@ -11,7 +11,7 @@ namespace Nebula.Main
 {
     public interface IControl
     {
-        void Create(Runtime game);
+        void Create(NebulaRuntime game);
         void Initialise();
         void LoadContent();
         void UnloadContent();

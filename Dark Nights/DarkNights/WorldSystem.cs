@@ -21,13 +21,14 @@ namespace DarkNights
         private LoggingLevel _loggingLevel = LoggingLevel.Warn;
 
         #endregion
-
-        public static int CHUNK_SIZE;
-
+        public World World;
         public override void Init()
         {
             log.Info("> ...");
-            base.Init();
+            World = new World(0, 5, 5);
+            World.GenerateChunks();
+
+            ApplicationController.Get.Initialized(this);
         }
     }
 }

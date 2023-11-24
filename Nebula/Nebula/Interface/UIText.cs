@@ -36,7 +36,7 @@ namespace Nebula.Program.Interface
             this.text = text;
             this.color = color;
             this.origin = origin;
-            font = Nebula.Main.Runtime.GameContent.Load<SpriteFont>("FONT/"+fontName);
+            font = Nebula.Main.NebulaRuntime.Content.Load<SpriteFont>("FONT/"+fontName);
             Recalculate();
         }
 
@@ -45,7 +45,7 @@ namespace Nebula.Program.Interface
             this.text = text;
             this.color = color;
             this.origin = origin;
-            font = Nebula.Main.Runtime.GameContent.Load<SpriteFont>("FONT/" + fontName);
+            font = Nebula.Main.NebulaRuntime.Content.Load<SpriteFont>("FONT/" + fontName);
             HorizontalAlignment = hAlignment;
             VerticalAlignment = vAlignment;
             Recalculate();

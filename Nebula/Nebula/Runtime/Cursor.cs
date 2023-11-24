@@ -19,7 +19,7 @@ namespace Nebula
         private bool customCursor = true;
 
 
-        public void Create(Runtime game)
+        public void Create(Main.NebulaRuntime game)
         {
             instance = this;
         }

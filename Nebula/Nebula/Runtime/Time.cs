@@ -10,7 +10,7 @@ namespace Nebula.Main
         public static float  deltaTime => Access._deltaTime;
         private float _deltaTime;
 
-        public void Create(Runtime game)
+        public void Create(NebulaRuntime game)
         {
             Access = this;
         }

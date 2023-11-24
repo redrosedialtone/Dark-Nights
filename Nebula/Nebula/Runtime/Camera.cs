@@ -109,7 +109,7 @@ namespace Nebula.Main
             _isViewTransformDirty = true;
         }
 
-        public void Create(Runtime game)
+        public void Create(NebulaRuntime game)
         {
             instance = this;
         }
