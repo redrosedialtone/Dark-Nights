@@ -8,6 +8,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Nebula.Base;
+using Nebula.Runtime;
 
 namespace Nebula.Main
 {
@@ -62,12 +63,25 @@ namespace Nebula.Main
             renderTarget = new RenderTarget2D(GraphicsDevice, RENDER_WIDTH, RENDER_HEIGHT, false, SurfaceFormat.Color, DepthFormat.None);
         }
 
+        public Vector2[] ourPoints;
+
         public void LoadContent()
         {
             _spriteBatch = new SpriteBatch(NebulaRuntime.GraphicsDevice);
             circleTexture = Resources.Load<Texture2D>("Sprites/hollowCircle");
             filledCircleTexture = Resources.Load<Texture2D>("Sprites/filledCircle");
+            DrawUtils.LineTexture(_spriteBatch);
             //ballTexture = RUNTIME.Content.Load<Texture2D>("DesignButtonLogo");
+
+            ourPoints = new Vector2[]
+            {
+                new Vector2(500,525),
+                new Vector2(525,525),
+                new Vector2(525,500),
+                new Vector2(500,500)
+            };
+
+            DrawUtils.DrawTrackedPolygon(GetRectPoints, Color.White);
         }
 
         public void Update(GameTime gameTime)
@@ -75,14 +89,29 @@ namespace Nebula.Main
 
         }
 
+        public Vector2[] GetRectPoints()
+        {
+            Vector2[] newPoints = new Vector2[ourPoints.Length];
+            for (int i = 0; i < ourPoints.Length; i++)
+            {
+                var cur = ourPoints[i];
+                newPoints[i] = new Vector2(cur.X +0.1f, cur.Y+0.1f);
+            }
+            ourPoints = newPoints;
+            return ourPoints;
+        }
+
         public void Draw(GameTime gameTime)
         {
             GraphicsDevice.SetRenderTarget(renderTarget);
             GraphicsDevice.Clear(ClearOptions.Target, new Color(23,23,23), 1.0f, 0);
 
+
+
             _spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.NonPremultiplied);
             Cursor.Get.DrawCursor(_spriteBatch);
             DrawGizmos();
+            DrawUtils.DrawBuffer(_spriteBatch);
             DrawUICalls(_spriteBatch);
             _spriteBatch.End();
 
