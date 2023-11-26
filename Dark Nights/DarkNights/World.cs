@@ -24,12 +24,12 @@ namespace DarkNights
         public (int X, int Y) Minimum;
         public (int X, int Y) Maximum;
 
-        private readonly Dictionary<int, Chunk> Chunks;
+        private readonly Dictionary<int, Chunk> allChunks;
 
         public World(int seed, int width, int height)
         {
             SEED = seed;
-            Chunks = new Dictionary<int, Chunk>();
+            allChunks = new Dictionary<int, Chunk>();
             float _halfWidth = width / 2;
             float _halfHeight = height / 2;
 
@@ -51,9 +51,32 @@ namespace DarkNights
 
         public void CreateChunk(int X, int Y)
         {
+            X *= CHUNK_SIZE;
+            Y *= CHUNK_SIZE;
             log.Trace($"Creating Chunk @ ({X},{Y})");
-            Chunk newChunk = new Chunk();
-
+            Chunk newChunk = new Chunk((X,Y));
+            allChunks.Add(newChunk.GetHashCode(),newChunk);
         }
+
+        public Chunk ChunkUnsf(Coordinates Coordinates)
+        {
+            if (allChunks.TryGetValue(Chunk.GetHashCode(Coordinates), out Chunk val))
+            {
+                return val;
+            }
+            log.Warn($"Could not find Chunk at::{Coordinates}");
+            return null;
+        }
+
+        public IEnumerable<Chunk> Chunks()
+        {
+            foreach (var chunk in allChunks.Values)
+            {
+                yield return chunk;
+            }
+        }
+
+        public Chunk this[Coordinates Coordinate]
+        { get { return ChunkUnsf(Coordinate); } }
     }
 }

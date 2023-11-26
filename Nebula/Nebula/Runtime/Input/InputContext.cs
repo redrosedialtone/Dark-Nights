@@ -5,17 +5,22 @@ namespace Nebula.Main
 {
 	public interface IInputContext
 	{
+		string Name { get; }
+		void ProcessActions(GameTime time);
 
-	}
+    }
 
 	public abstract class InputContext : IInputContext
 	{
-
-	}
+		public abstract string Name { get; }
+		public abstract void ProcessActions(GameTime time);
+    }
 
 	public class DefaultCtxt : InputContext
 	{
-		public float SENSITIVITY = 500;
+		public override string Name => "default";
+
+        public float SENSITIVITY = 500;
 		public float SENSITIVITY_ROTATE = 0.02f;
 
 		public Action<Vector2> OnMovement;
@@ -29,7 +34,7 @@ namespace Nebula.Main
 
 		public bool Lock = true;
 
-		public void ProcessActions(GameTime time)
+		public override void ProcessActions(GameTime time)
 		{
 			bool _active = false;
 			bool _oldLock = Lock;
@@ -143,6 +148,4 @@ namespace Nebula.Main
 		public void OnLock(bool locked);
 		public void OnClick(MouseButtonActionState Data);
 	}
-
-
 }

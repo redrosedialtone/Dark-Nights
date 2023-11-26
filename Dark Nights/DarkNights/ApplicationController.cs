@@ -11,6 +11,7 @@ using NLog;
 using System.Threading;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Input;
+using Nebula.Base;
 
 namespace DarkNights
 {
@@ -40,7 +41,7 @@ namespace DarkNights
 
         public ApplicationController()
         {
-            log.Info("Application Executed...");
+            log.Info("> ..");
 
             GraphicsDeviceMgr = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
@@ -54,10 +55,11 @@ namespace DarkNights
         {
             Nebula.Initialize(this);
             instance = this;
-            log.Info("> Application Initialising <");
+            log.Info("> Initialising.. ");
             Systems = new Manager[]
             {
-                new WorldSystem()
+                new WorldSystem(),
+                new PlayerController()
             };
             if (Systems != null)
             {
@@ -72,7 +74,7 @@ namespace DarkNights
             base.Initialize();
         }
 
-        public void Initialized(Manager sys)
+        public void Initiate(Manager sys)
         {
             InitializedSystems[InitializedCount] = sys;
             InitializedCount++;
@@ -90,7 +92,7 @@ namespace DarkNights
             {
                 sys.OnInitialized();
             }
-            log.Info("> System Initialized! <");
+            log.Info("> ..Initialised!");
         }
 
         public void Create(NebulaRuntime rt)
@@ -143,9 +145,14 @@ namespace DarkNights
 
         public void ExitApplication()
         {
-            log.Info("> APPLICATION CLOSED <");
+            log.Info("> APPLICATION CLOSED ");
             NLog.LogManager.Shutdown();
             Exit();
+        }
+
+        public static void AddGizmo(IDrawGizmos Gizmo)
+        {
+            Graphics.AddGizmo(Gizmo);
         }
     }
 }

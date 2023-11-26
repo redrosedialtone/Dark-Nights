@@ -54,7 +54,7 @@ namespace Nebula.Main
             Controls[3] = new Time();
             Controls[4] = new Resources(Content);
             Controls[5] = new Cursor();
-            Controls[6] = new Camera();
+            Controls[6] = new NebulaCamera();
             Controls[0].Create(this);
             Controls[1].Create(this);
             Controls[2].Create(this);

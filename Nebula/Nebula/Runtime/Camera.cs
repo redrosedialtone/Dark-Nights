@@ -8,16 +8,17 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Nebula.Base;
 using Nebula.Systems;
+using NLog.Fluent;
 
 namespace Nebula.Main
 {
-    public class Camera : IControl, IDefaultCtxt
+    public abstract class Camera : IControl
     {
         #region Static
         private static Camera instance;
         public static Camera Get => instance;
 
-        private static readonly NLog.Logger log = NLog.LogManager.GetLogger("CAMERA");
+        protected static readonly NLog.Logger log = NLog.LogManager.GetLogger("CAMERA");
         #endregion
 
         public Vector2 Position { get { return _position; } set { _position = value; RecalculateView(); } }
@@ -43,15 +44,7 @@ namespace Nebula.Main
         private Matrix viewRotation = Matrix.Identity;
         private Matrix viewScale = Matrix.Identity;
 
-        private PrintCameraPositionGizmo PositionGizmo;
-        private DrawCameraPositionGizmo drawCameraPositionGizmo;
-        private DrawViewportGizmo drawViewPortGizmo;
         private Rectangle _viewBounds;
-        private bool _runningCameraMovement = false;
-        private bool _cameraMovementActuated = false;
-        private Vector2 cameraTarget;
-        private Vector2 cameraVelocity;
-        private bool CameraLock = false;
 
         private bool _isViewTransformDirty = true;
         private bool _isViewBoundsDirty = true;
@@ -114,41 +107,102 @@ namespace Nebula.Main
             instance = this;
         }
 
-        public void Initialise()
+        public virtual void Update(GameTime gameTime) { }
+
+        public virtual void Initialise()
         {
-            log.Info("> Camera Init..");
-            Zoom = 0.25f;
+            log.Info("> ..");
+            Zoom = 1.0f;
             Rotation = 0.0f;
             Viewport = new Point(Graphics.RENDER_WIDTH, Graphics.RENDER_HEIGHT);
             Origin = new Vector2(ViewportWidth / 2.0f, ViewportHeight / 2.0f);
             Position = Vector2.Zero;
+        }
+
+        public Rectangle ViewportWorldBoundry()
+        {
+            Vector2 viewPortCorner = ScreenToWorld(new Vector2(0, 0));
+            Vector2 viewPortBottomCorner =
+               ScreenToWorld(new Vector2(ViewportWidth, ViewportHeight));
+
+            return new Rectangle((int)viewPortCorner.X,
+               (int)viewPortCorner.Y,
+               (int)(viewPortBottomCorner.X - viewPortCorner.X),
+               (int)(viewPortBottomCorner.Y - viewPortCorner.Y));
+        }
+
+        public static Vector2 WorldToScreen(Vector2 worldPosition)
+        {
+            return Vector2.Transform(worldPosition, instance.ViewTransformationMatrix);
+        }
+
+        public static Vector2 ScreenToWorld(Vector2 screenPosition)
+        {
+            return Vector2.Transform(screenPosition,
+                Matrix.Invert(instance.ViewTransformationMatrix));
+        }
+
+
+        public void OnClick(MouseButtonActionState Data) { }
+
+        public void LoadContent()
+        {
+            
+        }
+
+        public void UnloadContent()
+        {
+            
+        }
+
+        public void Draw(GameTime gameTime)
+        {
+            
+        }
+    }
+
+    public class NebulaCamera : Camera, IDefaultCtxt
+    {
+
+        private PrintCameraPositionGizmo PositionGizmo;
+        private DrawCameraPositionGizmo drawCameraPositionGizmo;
+        private DrawViewportGizmo drawViewPortGizmo;
+
+        private bool _runningCameraMovement = false;
+        private bool _cameraMovementActuated = false;
+        private Vector2 cameraTarget;
+        private Vector2 cameraVelocity;
+        private bool CameraLock = false;
+
+        public override void Initialise()
+        {
+            base.Initialise();
+            Input.DefaultCtxt.OnMovement += OnMovementAxis;
+            Input.DefaultCtxt.OnScroll += OnZoom;
+            Input.DefaultCtxt.OnLock += OnLock;
+
+            CameraLock = Input.DefaultCtxt.Lock;
 
             PositionGizmo = new PrintCameraPositionGizmo();
             PositionGizmo.SetDrawGizmo(true);
             drawCameraPositionGizmo = new DrawCameraPositionGizmo();
             drawCameraPositionGizmo.SetDrawGizmo(true);
             drawViewPortGizmo = new DrawViewportGizmo();
-            //drawViewPortGizmo.SetDrawGizmo(true);
-
-            Input.DefaultCtxt.OnMovement += OnMovementAxis;
-            Input.DefaultCtxt.OnScroll += OnZoom;
-            Input.DefaultCtxt.OnLock += OnLock;
-
-            CameraLock = Input.DefaultCtxt.Lock;
+            drawViewPortGizmo.SetDrawGizmo(true);
         }
 
-        public void Update(GameTime time)
+        public override void Update(GameTime time)
         {
             if (_runningCameraMovement)
             {
                 ContinueCameraMovement();
-            }       
+            }
         }
 
         public void OnMovementAxis(Vector2 cameraMovement)
         {
-            if (CameraLock) return;;
-            if(cameraMovement != Vector2.Zero) _cameraMovementActuated = true;
+            if (CameraLock) return; ;
+            if (cameraMovement != Vector2.Zero) _cameraMovementActuated = true;
             else { _cameraMovementActuated = false; }
             log.Trace($"Camera Movement Input::{cameraMovement}");
             if (!_runningCameraMovement)
@@ -210,28 +264,6 @@ namespace Nebula.Main
             return output;
         }
 
-        public Rectangle ViewportWorldBoundry()
-        {
-            Vector2 viewPortCorner = ScreenToWorld(new Vector2(0, 0));
-            Vector2 viewPortBottomCorner =
-               ScreenToWorld(new Vector2(ViewportWidth, ViewportHeight));
-
-            return new Rectangle((int)viewPortCorner.X,
-               (int)viewPortCorner.Y,
-               (int)(viewPortBottomCorner.X - viewPortCorner.X),
-               (int)(viewPortBottomCorner.Y - viewPortCorner.Y));
-        }
-
-        public static Vector2 WorldToScreen(Vector2 worldPosition)
-        {
-            return Vector2.Transform(worldPosition, instance.ViewTransformationMatrix);
-        }
-
-        public static Vector2 ScreenToWorld(Vector2 screenPosition)
-        {
-            return Vector2.Transform(screenPosition,
-                Matrix.Invert(instance.ViewTransformationMatrix));
-        }
 
         public void AdjustZoom(float amount)
         {
@@ -249,23 +281,6 @@ namespace Nebula.Main
         public void OnZoom(float zoomDelta)
         {
             AdjustZoom(zoomDelta);
-        }
-
-        public void OnClick(MouseButtonActionState Data) { }
-
-        public void LoadContent()
-        {
-            
-        }
-
-        public void UnloadContent()
-        {
-            
-        }
-
-        public void Draw(GameTime gameTime)
-        {
-            
         }
 
         public void OnLock(bool locked)

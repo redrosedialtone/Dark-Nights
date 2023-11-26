@@ -26,6 +26,9 @@ namespace DarkNights
         public static implicit operator Coordinates(Vector2 Coordinate) =>
             new Coordinates((int)MathF.Floor(Coordinate.X), (int)MathF.Floor(Coordinate.Y));
 
+        public static implicit operator Coordinates((int X, int Y) Coordinate) =>
+            new Coordinates(Coordinate.X, Coordinate.Y);
+
         public override string ToString()
         {
             return $"({X},{Y})";
@@ -61,4 +64,25 @@ namespace DarkNights
         public static implicit operator Vector3(Coordinates v) =>
             new Vector3(v.X, v.Y,0);
     }
+
+    /*public struct PixelCoordinate
+    {
+        public int X { get; set; }
+        public int Y { get; set; }
+
+        public PixelCoordinate((int X, int Y) Coordinates)
+            : this(Coordinates.X, Coordinates.Y) { }
+        public PixelCoordinate(Coordinates Coordinates)
+            : this((int)MathF.Floor(Coordinates.X * WorldSystem.UNIT_PIXEL_SIZE), (int)MathF.Floor(Coordinates.Y * WorldSystem.UNIT_PIXEL_SIZE)) { }
+
+        public PixelCoordinate(int X, int Y)
+        { this.X = X; this.Y = Y; }
+
+        public static implicit operator PixelCoordinate(Coordinates Coordinates) =>
+            new PixelCoordinate(Coordinates.X * WorldSystem.UNIT_PIXEL_SIZE, Coordinates.Y * WorldSystem.UNIT_PIXEL_SIZE);
+        public static implicit operator Coordinates(PixelCoordinate Coordinates) =>
+            new Coordinates(Coordinates.X / WorldSystem.UNIT_PIXEL_SIZE, Coordinates.Y / WorldSystem.UNIT_PIXEL_SIZE);
+        public static implicit operator Vector2(PixelCoordinate Coordinates) =>
+            new Vector2(Coordinates.X, Coordinates.Y);
+    }*/
 }

@@ -20,7 +20,7 @@ namespace Nebula.Main
 
         public void Create(NebulaRuntime game)
         {
-            log.Info("[RESOURCES]");
+            log.Info("> ..");
             RUNTIME = game;
             Access = this;
         }
@@ -57,7 +57,7 @@ namespace Nebula.Main
 
         private T Instance_Load<T>(string _content)
         {
-            log.Info($"Attempting to load \"{_content}\"..");
+            log.Trace($"Attempting to load \"{_content}\"..");
             try
             {
                 return _contentManager.Load<T>(_content);

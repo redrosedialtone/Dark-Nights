@@ -8,6 +8,7 @@ using Microsoft.Xna.Framework.Input;
 using Nebula.Input;
 using System.Security.Cryptography.X509Certificates;
 using System.Diagnostics.CodeAnalysis;
+using System.Xml.Linq;
 
 namespace Nebula.Main
 {
@@ -31,6 +32,7 @@ namespace Nebula.Main
     {
         public PointerEventData buttonData;
         public ButtonState buttonState;
+        public ButtonState previousState;
         public Point mousePosition;
 
         public InputID ID { get; set; }
@@ -43,12 +45,12 @@ namespace Nebula.Main
 
         public bool PressedThisFrame()
         {
-            return buttonState == ButtonState.Pressed;
+            return buttonState == ButtonState.Pressed && previousState == ButtonState.Released;
         }
 
         public bool ReleasedThisFrame()
         {
-            return buttonState == ButtonState.Released;
+            return buttonState == ButtonState.Released && previousState == ButtonState.Pressed;
         }
     }
 
@@ -182,6 +184,9 @@ namespace Nebula.Main
         private KeyboardInputMap kbInput;
         public static DefaultCtxt DefaultCtxt;
 
+        public Dictionary<string, IInputContext> InactiveCtxt = new Dictionary<string, IInputContext>();
+        public Dictionary<string, IInputContext> ActiveCtxt = new Dictionary<string, IInputContext>();
+
         public void Create(NebulaRuntime game)
         {
             Access = this;
@@ -208,6 +213,8 @@ namespace Nebula.Main
             kbInput = new KeyboardInputMap();
 
             DefaultCtxt = new DefaultCtxt();
+            AddContext(DefaultCtxt);
+            EnableContext(DefaultCtxt.Name);
         }
 
         public void LoadContent()
@@ -218,6 +225,34 @@ namespace Nebula.Main
         public void UnloadContent()
         {
 
+        }
+
+        public void AddContext(IInputContext ctxt)
+        {
+            if (InactiveCtxt.ContainsKey(ctxt.Name)) { log.Debug($"InputCtxt {ctxt.Name} already exists!"); return; }
+            InactiveCtxt.Add(ctxt.Name, ctxt);
+        }
+
+        public void EnableContext(string name)
+        {
+            if (InactiveCtxt.TryGetValue(name, out IInputContext ctxt))
+            {
+                ActiveCtxt.Add(name, ctxt);
+                InactiveCtxt.Remove(name);
+                log.Trace($"InputCtxt {name} enabled.");
+            }
+            else log.Debug($"InputCtxt {name} not inactive!");
+        }
+
+        public void DisableContext(string name)
+        {
+            if (ActiveCtxt.TryGetValue(name, out IInputContext ctxt))
+            {
+                InactiveCtxt.Add(name, ctxt);
+                ActiveCtxt.Remove(name);
+                log.Trace($"InputCtxt {name} disabled.");
+            }
+            else log.Debug($"InputCtxt {name} not active!");
         }
 
         public void Update(GameTime gameTime)
@@ -253,8 +288,15 @@ namespace Nebula.Main
                 }
             }
 
-            DefaultCtxt.ProcessActions(gameTime);
+            if (ActiveCtxt.Count > 0)
+            {
+                foreach (var ctxt in ActiveCtxt)
+                {
+                    ctxt.Value.ProcessActions(gameTime);
+                }
+            }
         }
+
         // Mouse Actions
         #region Mouse
         public static void AddPointerEventListener(IPointerEventListener Listener)
@@ -268,10 +310,15 @@ namespace Nebula.Main
             PreviousMousePointerEventData = MousePointerEventData;
             MousePointerEventData = Mouse.GetState();
 
+            leftClickButtonData.previousState = leftClickButtonData.buttonState;
             leftClickButtonData.buttonState = MousePointerEventData.LeftButton;
             leftClickButtonData.mousePosition = MousePointerEventData.Position;
+
+            rightClickButtonData.previousState = rightClickButtonData.buttonState;
             rightClickButtonData.buttonState = MousePointerEventData.RightButton;
             rightClickButtonData.mousePosition = MousePointerEventData.Position;
+
+            middleClickButtonData.previousState = middleClickButtonData.buttonState;
             middleClickButtonData.buttonState = MousePointerEventData.MiddleButton;
             middleClickButtonData.mousePosition = MousePointerEventData.Position;
 
@@ -353,6 +400,7 @@ namespace Nebula.Main
                 pointerData.pressedEvent = null;
                 pointerData.releaseEvent = pointerUpExecuted;
             }
+            log.Debug($"{Data.ID.ToString()}::{Data.buttonState.ToString()}");
         }
 
         private void ProcessMouseOver(MouseButtonActionState Data, IPointerEventListener[] Events)

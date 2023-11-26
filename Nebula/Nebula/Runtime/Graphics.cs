@@ -55,7 +55,7 @@ namespace Nebula.Main
 
         public void Initialise()
         {
-            log.Info("> Nebula Graphics Init.. <");
+            log.Info("> ..");
             //Graphics.IsFullScreen = true;
             GraphicsDeviceMngr.PreferredBackBufferWidth = RENDER_WIDTH;
             GraphicsDeviceMngr.PreferredBackBufferHeight = RENDER_HEIGHT;
@@ -63,42 +63,32 @@ namespace Nebula.Main
             renderTarget = new RenderTarget2D(GraphicsDevice, RENDER_WIDTH, RENDER_HEIGHT, false, SurfaceFormat.Color, DepthFormat.None);
         }
 
-        public Vector2[] ourPoints;
+        private Polygon ourTestPolygon;
 
         public void LoadContent()
         {
             _spriteBatch = new SpriteBatch(NebulaRuntime.GraphicsDevice);
             circleTexture = Resources.Load<Texture2D>("Sprites/hollowCircle");
             filledCircleTexture = Resources.Load<Texture2D>("Sprites/filledCircle");
-            DrawUtils.LineTexture(_spriteBatch);
+            DrawUtils.Setup(_spriteBatch);
             //ballTexture = RUNTIME.Content.Load<Texture2D>("DesignButtonLogo");
 
-            ourPoints = new Vector2[]
+            Vector2[] points = new Vector2[]
             {
-                new Vector2(500,525),
-                new Vector2(525,525),
-                new Vector2(525,500),
-                new Vector2(500,500)
+                new Vector2(0,25),
+                new Vector2(25,25),
+                new Vector2(25,0),
+                new Vector2(0,0)
             };
 
-            DrawUtils.DrawTrackedPolygon(GetRectPoints, Color.White);
+            ourTestPolygon = new Polygon(points, new Vector2(500,500));
+
+            DrawUtils.DrawPolygon(ourTestPolygon, Color.White);
         }
 
         public void Update(GameTime gameTime)
         {
-
-        }
-
-        public Vector2[] GetRectPoints()
-        {
-            Vector2[] newPoints = new Vector2[ourPoints.Length];
-            for (int i = 0; i < ourPoints.Length; i++)
-            {
-                var cur = ourPoints[i];
-                newPoints[i] = new Vector2(cur.X +0.1f, cur.Y+0.1f);
-            }
-            ourPoints = newPoints;
-            return ourPoints;
+            ourTestPolygon.Position = new Vector2(ourTestPolygon.Position.X + 0.1f, ourTestPolygon.Position.Y + 0.1f);
         }
 
         public void Draw(GameTime gameTime)
@@ -111,13 +101,14 @@ namespace Nebula.Main
             _spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.NonPremultiplied);
             Cursor.Get.DrawCursor(_spriteBatch);
             DrawGizmos();
-            DrawUtils.DrawBuffer(_spriteBatch);
+            DrawUtils.DrawGizmoBuffer(_spriteBatch);
             DrawUICalls(_spriteBatch);
             _spriteBatch.End();
 
             var matrix = Camera.Get.ViewTransformationMatrix;
             _spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone, null, matrix);
             log.Trace($"Drawing {spriteBatchCalls.Count} sprites..");
+            DrawUtils.DrawWorldBuffer(_spriteBatch);
             DrawSpriteBatch(_spriteBatch);
             DrawWorldGizmos();
             _spriteBatch.End();
