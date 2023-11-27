@@ -27,8 +27,11 @@ namespace DarkNights
         #endregion
 
         public Character PlayerCharacter;
+        public List<Wall> Walls = new List<Wall>();
+        public Action<Wall> OnWallBuilt;
 
         private CharacterGizmo characterGizmo;
+        private EntityGizmo entityGizmo;
 
         public override void Init()
         {
@@ -51,11 +54,16 @@ namespace DarkNights
             characterGizmo = new CharacterGizmo();
             characterGizmo.SetDrawGizmo(true);
             characterGizmo.DrawPlayer = true;
+
+            entityGizmo = new EntityGizmo();
+            entityGizmo.SetDrawGizmo(true);
+            entityGizmo.DrawWalls = true;
         }
 
-        public override void Tick()
+        public override void Tick(Time gameTime)
         {
-            base.Tick();
+            base.Tick(gameTime);
+            PlayerCharacter.Tick(gameTime);
         }
 
         public void OnMovementAxis(Vector2 movementAxis)
@@ -80,12 +88,27 @@ namespace DarkNights
 
         public void OnClick(MouseButtonActionState Data)
         {
-            if (PlayerCharacter != null)
+            if (Data.ID == InputID.LeftMouseButton)
             {
-                Vector2 pos = Camera.ScreenToWorld(new Vector2(Data.mousePosition.X, Data.mousePosition.Y));
-                PlayerCharacter.SetPosition(new Vector2(pos.X, pos.Y));
-                log.Info($"Moving Player Character::{PlayerCharacter.Position}");
+                if (PlayerCharacter != null)
+                {
+                    Vector2 pos = Camera.ScreenToWorld(new Vector2(Data.mousePosition.X, Data.mousePosition.Y));
+                    PlayerCharacter.Movement.MoveTo(pos);
+                    log.Info($"Moving Player Character::{PlayerCharacter.Position}");
+                }
             }
+            else if (Data.ID == InputID.RightMouseButton)
+            {
+                AddWall(Camera.ScreenToWorld(new Vector2(Data.mousePosition.X, Data.mousePosition.Y)));
+            }
+            
+        }
+
+        private void AddWall(Coordinates Coordinates)
+        {
+            Wall wall = new Wall(Coordinates);
+            Walls.Add(wall);
+            OnWallBuilt?.Invoke(wall);
         }
     }
 
@@ -115,15 +138,15 @@ namespace DarkNights
             {
                 Vector2[] corners = new Vector2[4];
 
-                corners[0] = WorldSystem.Position(new Vector2(-1,-1));
-                corners[1] = WorldSystem.Position(new Vector2(1,-1));
-                corners[2] = WorldSystem.Position(new Vector2(1,1));
-                corners[3] = WorldSystem.Position(new Vector2(-1,1));
+                corners[0] = new Coordinates(-1,-1);
+                corners[1] = new Coordinates(1,-1);
+                corners[2] = new Coordinates(1,1);
+                corners[3] = new Coordinates(-1,1);
 
                 characterPolygon = new Polygon(corners, PlayerController.Get.PlayerCharacter.Position);
                 playerDrawCall += DrawUtils.DrawPolygon(characterPolygon, characterOutlineColor, 3f, drawType: DrawType.World);
 
-                PlayerController.Get.PlayerCharacter.OnEntityMovement += UpdateGizmoPos;
+                PlayerController.Get.PlayerCharacter.Movement.OnEntityMovement += UpdateGizmoPos;
             }
             else
             {
@@ -138,6 +161,61 @@ namespace DarkNights
         private void UpdateGizmoPos(object sender, EntityMovementArgs e)
         {
             characterPolygon.Position = e.newPosition;
+        }
+    }
+
+    public class EntityGizmo : IDrawGizmos
+    {
+        public bool DrawGizmo { get; private set; }
+        public bool DrawWalls { get { return _drawWalls; } set { _drawWalls = value; SetDrawWalls(); } }
+        private bool _drawWalls = false;
+        private Color wallOutlineColor => new Color(225, 25, 25, 225);
+        private DrawUtil playerDrawCall;
+
+        private Polygon characterPolygon;
+
+        public void DrawGizmos(SpriteBatch Batch)
+        {
+
+        }
+
+        public void SetDrawGizmo(bool drawGizmo)
+        {
+            this.DrawGizmo = drawGizmo;
+        }
+
+        private void SetDrawWalls()
+        {
+            if (_drawWalls)
+            {
+                PlayerController.Get.OnWallBuilt += AddWallOutline;
+                foreach (var wall in PlayerController.Get.Walls)
+                {
+                    AddWallOutline(wall);
+                }
+            }
+            else
+            {
+                if (playerDrawCall != null)
+                {
+                    DrawUtils.RemoveUtil(playerDrawCall);
+                    playerDrawCall = null;
+                }
+                PlayerController.Get.OnWallBuilt -= AddWallOutline;
+            }
+        }
+
+        private void AddWallOutline(Wall wall)
+        {
+            Vector2[] corners = new Vector2[4];
+
+            corners[0] = new Coordinates(0,0);
+            corners[1] = new Coordinates(1, 0);
+            corners[2] = new Coordinates(1, 1);
+            corners[3] = new Coordinates(0, 1);
+
+            characterPolygon = new Polygon(corners, wall.Coordinates);
+            playerDrawCall += DrawUtils.DrawPolygon(characterPolygon, wallOutlineColor, 3f, drawType: DrawType.World);
         }
     }
 

@@ -8,7 +8,7 @@ namespace DarkNights
 {
     public class Chunk
     {
-        public static (int X, int Y) Size => (WorldSystem.CHUNK_SIZE, WorldSystem.CHUNK_SIZE);
+        public static (int X, int Y) Size => (Defs.ChunkSize, Defs.ChunkSize);
         public Coordinates Origin { get; set; }
 
         public Chunk(Coordinates Origin)

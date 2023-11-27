@@ -26,8 +26,6 @@ namespace DarkNights
         private LoggingLevel _loggingLevel = LoggingLevel.Warn;
 
         #endregion
-        public static int UNIT_PIXEL_SIZE => 32;
-        public static int CHUNK_SIZE => World.CHUNK_SIZE;
         public World World;
 
         private WorldGizmo gizmo;
@@ -51,11 +49,6 @@ namespace DarkNights
             gizmo.DrawChunks = true;
             gizmo.DrawTiles = true;
         }
-
-        public static Vector2 Position(Coordinates Coordinates) =>
-            new Vector2(Coordinates.X * UNIT_PIXEL_SIZE, Coordinates.Y * UNIT_PIXEL_SIZE);
-        public static Vector2 Position(Vector2 Coordinates) =>
-            new Vector2(Coordinates.X * UNIT_PIXEL_SIZE, Coordinates.Y * UNIT_PIXEL_SIZE);
     }
 
     public class WorldGizmo : IDrawGizmos
@@ -101,12 +94,12 @@ namespace DarkNights
                 {
                     Vector2[] corners = new Vector2[4];
 
-                    corners[0] = WorldSystem.Position((0, 0));
-                    corners[1] = WorldSystem.Position((Chunk.Size.X, 0));
-                    corners[2] = WorldSystem.Position((Chunk.Size.X, Chunk.Size.Y));
-                    corners[3] = WorldSystem.Position((0, Chunk.Size.Y));
+                    corners[0] = new Coordinates(0, 0);
+                    corners[1] = new Coordinates(Chunk.Size.X, 0);
+                    corners[2] = new Coordinates(Chunk.Size.X, Chunk.Size.Y);
+                    corners[3] = new Coordinates(0, Chunk.Size.Y);
 
-                    var polygon = new Polygon(corners, WorldSystem.Position(chunk.Origin));
+                    var polygon = new Polygon(corners, chunk.Origin);
                     chunkDrawCall += DrawUtils.DrawPolygon(polygon, chunkGraphColor, 2f, drawType:DrawType.World);
                 }
             }
@@ -131,12 +124,12 @@ namespace DarkNights
                     {
                         Vector2[] corners = new Vector2[4];
 
-                        corners[0] = WorldSystem.Position((0, 0));
-                        corners[1] = WorldSystem.Position((1, 0));
-                        corners[2] = WorldSystem.Position((1, 1));
-                        corners[3] = WorldSystem.Position((0, 1));
+                        corners[0] = new Coordinates(0, 0);
+                        corners[1] = new Coordinates(1, 0);
+                        corners[2] = new Coordinates(1, 1);
+                        corners[3] = new Coordinates(0, 1);
 
-                        var polygon = new Polygon(corners, WorldSystem.Position(tile));
+                        var polygon = new Polygon(corners, tile);
                         tileDrawCall += DrawUtils.DrawPolygon(polygon, tileGraphColor, 1f, drawType: DrawType.World);
                     }
 

@@ -7,8 +7,8 @@ namespace Nebula.Main
 	{
         public static Time Access;
 
-        public static float  deltaTime => Access._deltaTime;
-        private float _deltaTime;
+        public static float DeltaTime => Access.deltaTime;
+        public float deltaTime;
 
         public void Create(NebulaRuntime game)
         {
@@ -37,7 +37,7 @@ namespace Nebula.Main
 
         public void Update(GameTime gameTime)
         {
-            _deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
+            deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
         }
     }
 }

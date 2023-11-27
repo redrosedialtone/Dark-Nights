@@ -1,4 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
+using Nebula.Main;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,34 +9,23 @@ using System.Threading.Tasks;
 
 namespace DarkNights
 {
-    public class EntityMovementArgs : EventArgs
-    {
-        public readonly Vector2 newPosition;
 
-        public EntityMovementArgs(Vector2 newPosition)
-        {
-            this.newPosition = newPosition;
-        }
-    }
 
     public class Character
     {
-        public Coordinates Coordinates { get; private set; }
-        public Vector2 Position { get; private set; }
-
-        public event EventHandler<EntityMovementArgs> OnEntityMovement = delegate { };
+        public Coordinates Coordinates => Movement.Coordinates;
+        public Vector2 Position => Movement.Position;
+        public EntityMovement Movement;
 
         public Character(Coordinates Coordinates)
         {
-            this.Coordinates = Coordinates;
-            this.Position = Coordinates;
+            Movement = new EntityMovement();
+            Movement.SetPosition(Coordinates);
         }
 
-        public void SetPosition(Vector2 Position)
+        public void Tick(Time gameTime)
         {
-            this.Position = Position;
-            this.Coordinates = Position;
-            OnEntityMovement(this, new EntityMovementArgs(Position));
+            Movement.Move(gameTime.deltaTime);
         }
     }
 }

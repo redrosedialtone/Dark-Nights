@@ -116,7 +116,7 @@ namespace Nebula.Main
 
 			if (scrollY != 0)
 			{
-				scrollY = scrollY * Time.deltaTime * 0.02f;
+				scrollY = scrollY * Time.DeltaTime * 0.02f;
 				OnScroll?.Invoke(scrollY);
 			}
 

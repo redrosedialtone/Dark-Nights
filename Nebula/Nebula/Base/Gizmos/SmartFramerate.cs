@@ -39,7 +39,7 @@ namespace Nebula.Main
         {
             if (DrawGizmo)
             {
-                var deltaTime = Time.deltaTime;
+                var deltaTime = Time.DeltaTime;
                 this.Update(deltaTime);
                 var fps = string.Format("FPS: {0:0.##}", this.framerate);
                 Batch.DrawString(_spriteFont, fps, new Vector2(1, 1), Color.Yellow);

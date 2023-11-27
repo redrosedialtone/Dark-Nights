@@ -224,9 +224,9 @@ namespace Nebula.Main
         {
             Vector2 cameraPos = Position;
             float _vX = cameraVelocity.X;
-            float _x = SmoothDamp(cameraPos.X, cameraTarget.X, ref _vX, Time.deltaTime * 2.0f, Time.deltaTime);
+            float _x = SmoothDamp(cameraPos.X, cameraTarget.X, ref _vX, Time.DeltaTime * 2.0f, Time.DeltaTime);
             float _vY = cameraVelocity.Y;
-            float _y = SmoothDamp(cameraPos.Y, cameraTarget.Y, ref _vY, Time.deltaTime * 2.0f, Time.deltaTime);
+            float _y = SmoothDamp(cameraPos.Y, cameraTarget.Y, ref _vY, Time.DeltaTime * 2.0f, Time.DeltaTime);
             cameraVelocity = new Vector2(_vX, _vY);
 
             Vector2 movement = new Vector2(_x, _y);

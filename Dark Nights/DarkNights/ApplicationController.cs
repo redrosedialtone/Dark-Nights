@@ -115,7 +115,7 @@ namespace DarkNights
                 {
                     foreach (var sys in Systems)
                     {
-                        sys.Tick();
+                        sys.Tick(Time.Access);
                     }
                 }
             }

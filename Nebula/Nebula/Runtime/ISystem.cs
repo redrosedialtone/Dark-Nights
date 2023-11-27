@@ -1,3 +1,4 @@
+using Nebula.Main;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -10,7 +11,7 @@ namespace Nebula.Systems
     {
         void Init();
         void OnInitialized();
-        void Tick();
+        void Tick(Time gameTime);
 
         bool Initialized { get; }
     }
@@ -20,7 +21,7 @@ namespace Nebula.Systems
         public bool Initialized { get; protected set; }
         public abstract void Init();
         public virtual void OnInitialized() { }
-        public virtual void Tick() { }
+        public virtual void Tick(Time gameTime) { }
     }
 
 }

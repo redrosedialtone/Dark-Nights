@@ -21,10 +21,10 @@ namespace DarkNights
         { this.X = X; this.Y = Y; }
 
         public static implicit operator Vector2(Coordinates Coordinate) =>
-            new Vector2(Coordinate.X, Coordinate.Y);
+            new Vector2(Coordinate.X*Defs.UnitPixelSize, Coordinate.Y*Defs.UnitPixelSize);
 
         public static implicit operator Coordinates(Vector2 Coordinate) =>
-            new Coordinates((int)MathF.Floor(Coordinate.X), (int)MathF.Floor(Coordinate.Y));
+            new Coordinates((int)MathF.Floor(Coordinate.X/Defs.UnitPixelSize), (int)MathF.Floor(Coordinate.Y/Defs.UnitPixelSize));
 
         public static implicit operator Coordinates((int X, int Y) Coordinate) =>
             new Coordinates(Coordinate.X, Coordinate.Y);
@@ -60,9 +60,6 @@ namespace DarkNights
 
         public static bool operator !=(Coordinates a, Vector2 b) =>
             a.X != b.X || a.Y != b.X;
-
-        public static implicit operator Vector3(Coordinates v) =>
-            new Vector3(v.X, v.Y,0);
     }
 
     /*public struct PixelCoordinate

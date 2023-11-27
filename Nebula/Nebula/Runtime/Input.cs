@@ -359,7 +359,7 @@ namespace Nebula.Main
                 IPointerClickHandler clickEvent = ExecuteEvents.GetEventListener<IPointerClickHandler>(Events, Data, ExecuteEvents.pointerClick);
 
 
-                float dT = Time.deltaTime;
+                float dT = Time.DeltaTime;
                 if (clickEvent != null && clickEvent == pointerData.clickEvent)
                 {
                     float timeSinceLastClick = dT - pointerData.clickTime;
