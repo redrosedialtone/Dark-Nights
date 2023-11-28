@@ -17,4 +17,26 @@ namespace Nebula.Runtime
             this.Points = Points; this.Position = position;
         }
     }
+
+    public class Circle
+    {
+        public Vector2 Centre;
+        public float Radius;
+
+        public Circle(Vector2 Centre, float Radius)
+        {
+            this.Centre = Centre; this.Radius = Radius;
+        }
+    }
+
+    public class Line
+    {
+        public Vector2 From;
+        public Vector2 To;
+
+        public Line(Vector2 From, Vector2 To)
+        {
+            this.From = From; this.To = To;
+        }
+    }
 }

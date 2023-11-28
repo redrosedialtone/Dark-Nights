@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Xna.Framework;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,9 +7,12 @@ using System.Threading.Tasks;
 
 namespace DarkNights
 {
-    public class Wall
+    public class Wall : INavNode
     {
+        public NavNodeType Type => NavNodeType.Impassable;
+        public Vector2 Position => Coordinates;
         public Coordinates Coordinates { get; set; }
+        public float Cost => 1.0f;
 
         public Wall(Coordinates Coordinates)
         {

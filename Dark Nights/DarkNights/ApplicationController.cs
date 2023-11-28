@@ -59,7 +59,8 @@ namespace DarkNights
             Systems = new Manager[]
             {
                 new WorldSystem(),
-                new PlayerController()
+                new PlayerController(),
+                new NavigationSystem(),
             };
             if (Systems != null)
             {

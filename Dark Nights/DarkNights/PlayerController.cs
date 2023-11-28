@@ -53,7 +53,8 @@ namespace DarkNights
 
             characterGizmo = new CharacterGizmo();
             characterGizmo.SetDrawGizmo(true);
-            characterGizmo.DrawPlayer = true;
+            characterGizmo.DrawCharacters = true;
+            characterGizmo.DrawCharacterPaths = true;
 
             entityGizmo = new EntityGizmo();
             entityGizmo.SetDrawGizmo(true);
@@ -109,16 +110,26 @@ namespace DarkNights
             Wall wall = new Wall(Coordinates);
             Walls.Add(wall);
             OnWallBuilt?.Invoke(wall);
+            NavigationSystem.Get.AddNavNode(wall);
         }
     }
 
     public class CharacterGizmo : IDrawGizmos
     {
         public bool DrawGizmo { get; private set; }
-        public bool DrawPlayer { get { return _drawPlayer; } set { _drawPlayer = value; SetDrawPlayer(); } }
-        private bool _drawPlayer = false;
+
+        public bool DrawCharacters { get { return _drawCharacters; } set { _drawCharacters = value; SetDrawPlayer(); } }
+        private bool _drawCharacters = false;
         private Color characterOutlineColor => new Color(125, 75, 125, 225);
-        private DrawUtil playerDrawCall;
+        private DrawUtil characterOutlineDrawCall;
+        private Line pathLine;
+
+        public bool DrawCharacterPaths { get { return _drawCharacterPaths; } set { _drawCharacterPaths = value; SetDrawPaths(); } }
+        private bool _drawCharacterPaths = false;
+        private Color characterPathColor => new Color(225, 225, 225, 225);
+        private DrawUtil characterPathDrawCall;
+
+
 
         private Polygon characterPolygon;
 
@@ -134,7 +145,7 @@ namespace DarkNights
 
         private void SetDrawPlayer()
         {
-            if (_drawPlayer)
+            if (_drawCharacters)
             {
                 Vector2[] corners = new Vector2[4];
 
@@ -144,23 +155,45 @@ namespace DarkNights
                 corners[3] = new Coordinates(-1,1);
 
                 characterPolygon = new Polygon(corners, PlayerController.Get.PlayerCharacter.Position);
-                playerDrawCall += DrawUtils.DrawPolygon(characterPolygon, characterOutlineColor, 3f, drawType: DrawType.World);
+                characterOutlineDrawCall += DrawUtils.DrawPolygonOutline(characterPolygon, characterOutlineColor, 3f, drawType: DrawType.World);
 
                 PlayerController.Get.PlayerCharacter.Movement.OnEntityMovement += UpdateGizmoPos;
             }
             else
             {
-                if (playerDrawCall != null)
+                if (characterOutlineDrawCall != null)
                 {
-                    DrawUtils.RemoveUtil(playerDrawCall);
-                    playerDrawCall = null;
+                    DrawUtils.RemoveUtil(characterOutlineDrawCall);
+                    characterOutlineDrawCall = null;
                 }
             }
         }
 
         private void UpdateGizmoPos(object sender, EntityMovementArgs e)
         {
-            characterPolygon.Position = e.newPosition;
+            if (characterPolygon != null) characterPolygon.Position = e.newPosition;
+            if (sender is EntityMovement character)
+            {
+                pathLine.From = e.newPosition;
+                pathLine.To = character.MovementTarget;
+            }
+        }
+
+        private void SetDrawPaths()
+        {
+            if (_drawCharacterPaths)
+            {
+                pathLine = new Line(PlayerController.Get.PlayerCharacter.Position, PlayerController.Get.PlayerCharacter.Movement.MovementTarget);
+                characterPathDrawCall += DrawUtils.DrawLine(pathLine, characterPathColor, 1f, drawType: DrawType.World);
+            }
+            else
+            {
+                if (characterPathDrawCall != null)
+                {
+                    DrawUtils.RemoveUtil(characterPathDrawCall);
+                    characterPathDrawCall = null;
+                }
+            }
         }
     }
 
@@ -215,7 +248,7 @@ namespace DarkNights
             corners[3] = new Coordinates(0, 1);
 
             characterPolygon = new Polygon(corners, wall.Coordinates);
-            playerDrawCall += DrawUtils.DrawPolygon(characterPolygon, wallOutlineColor, 3f, drawType: DrawType.World);
+            playerDrawCall += DrawUtils.DrawPolygonOutline(characterPolygon, wallOutlineColor, 7f, drawType: DrawType.World);
         }
     }
 

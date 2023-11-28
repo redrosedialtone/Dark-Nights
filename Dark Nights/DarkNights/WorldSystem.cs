@@ -100,7 +100,7 @@ namespace DarkNights
                     corners[3] = new Coordinates(0, Chunk.Size.Y);
 
                     var polygon = new Polygon(corners, chunk.Origin);
-                    chunkDrawCall += DrawUtils.DrawPolygon(polygon, chunkGraphColor, 2f, drawType:DrawType.World);
+                    chunkDrawCall += DrawUtils.DrawPolygonOutline(polygon, chunkGraphColor, 2f, drawType:DrawType.World);
                 }
             }
             else
@@ -130,7 +130,7 @@ namespace DarkNights
                         corners[3] = new Coordinates(0, 1);
 
                         var polygon = new Polygon(corners, tile);
-                        tileDrawCall += DrawUtils.DrawPolygon(polygon, tileGraphColor, 1f, drawType: DrawType.World);
+                        tileDrawCall += DrawUtils.DrawPolygonOutline(polygon, tileGraphColor, 1f, drawType: DrawType.World);
                     }
 
                 }

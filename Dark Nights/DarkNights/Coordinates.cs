@@ -29,6 +29,9 @@ namespace DarkNights
         public static implicit operator Coordinates((int X, int Y) Coordinate) =>
             new Coordinates(Coordinate.X, Coordinate.Y);
 
+        public static Vector2 Centre(Coordinates Coordinate) =>
+            new Vector2(Coordinate.X*Defs.UnitPixelSize + Defs.UnitPixelSize / 4, Coordinate.Y*Defs.UnitPixelSize + Defs.UnitPixelSize / 4);
+
         public override string ToString()
         {
             return $"({X},{Y})";

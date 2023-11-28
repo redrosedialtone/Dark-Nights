@@ -42,8 +42,7 @@ namespace Nebula.Main
         private NebulaRuntime RUNTIME;
         private SpriteBatch _spriteBatch;
         private RenderTarget2D renderTarget;
-        private Texture2D circleTexture;
-        private Texture2D filledCircleTexture;
+
         //Texture2D ballTexture;
 
 
@@ -68,8 +67,7 @@ namespace Nebula.Main
         public void LoadContent()
         {
             _spriteBatch = new SpriteBatch(NebulaRuntime.GraphicsDevice);
-            circleTexture = Resources.Load<Texture2D>("Sprites/hollowCircle");
-            filledCircleTexture = Resources.Load<Texture2D>("Sprites/filledCircle");
+
             DrawUtils.Setup(_spriteBatch);
             //ballTexture = RUNTIME.Content.Load<Texture2D>("DesignButtonLogo");
 
@@ -83,7 +81,7 @@ namespace Nebula.Main
 
             ourTestPolygon = new Polygon(points, new Vector2(500,500));
 
-            DrawUtils.DrawPolygon(ourTestPolygon, Color.White);
+            DrawUtils.DrawPolygonOutline(ourTestPolygon, Color.White);
         }
 
         public void Update(GameTime gameTime)
@@ -196,37 +194,6 @@ namespace Nebula.Main
                 Vector2 nextVert = points[(i + 1) % points.Length];
                 DrawLine(spriteBatch, vert, nextVert, color, thickness, layerDepth);
             }
-        }
-
-        public static void DrawCircle(SpriteBatch spriteBatch, Vector2 centre, Vector2 origin, int radius, Color color, float angle, float layerDepth = 0)
-        {
-            Texture2D texture = Access.circleTexture;
-            float _scaleVal = radius / 32.0f;
-            Vector2 scale = new Vector2(_scaleVal, _scaleVal);
-            Vector2 scaledOrigin = new Vector2(origin.X + 32.0f, origin.Y + 32.0f);
-            spriteBatch.Draw(texture, centre, null, color, angle, scaledOrigin, scale, SpriteEffects.None, layerDepth);
-        }
-
-        public static void DrawFilledCircle(SpriteBatch spriteBatch, Vector2 centre, Vector2 origin, int radius, Color color, float angle, float layerDepth = 0)
-        {
-            Texture2D texture = Access.filledCircleTexture;
-            float _scaleVal = radius / 32.0f;
-            Vector2 scale = new Vector2(_scaleVal, _scaleVal);
-            Vector2 scaledOrigin = new Vector2(origin.X + 32.0f, origin.Y + 32.0f);
-            spriteBatch.Draw(texture, centre, null, color, angle, scaledOrigin, scale, SpriteEffects.None, layerDepth);
-        }
-
-        public static void DrawRectangle(SpriteBatch spriteBatch, Rectangle Rect, Vector2 origin, Color color, float thickness = 1f, float layerdepth = 0)
-        {
-            Vector2 A = new Vector2(Rect.Left, Rect.Top);
-            Vector2 B = new Vector2(Rect.Right, Rect.Top);
-            Vector2 C = new Vector2(Rect.Right, Rect.Bottom);
-            Vector2 D = new Vector2(Rect.Left, Rect.Bottom);
-
-            DrawLine(spriteBatch,A,B,color,thickness,layerdepth);
-            DrawLine(spriteBatch, B, C, color, thickness, layerdepth);
-            DrawLine(spriteBatch, C, D, color, thickness, layerdepth);
-            DrawLine(spriteBatch, D, A, color, thickness, layerdepth);
         }
 
         public void UnloadContent()

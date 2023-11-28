@@ -1,7 +1,10 @@
 ﻿using Microsoft.Xna.Framework;
+using NLog;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -23,15 +26,12 @@ namespace DarkNights
         public Coordinates Coordinates { get; protected set; }
 
         public Vector2 MovementTarget { get; protected set; }
+        protected Stack<INavNode> currentPath;
+        protected INavNode nextNode;
         public bool IsMoving { get; protected set; }
         public bool MovementCompleted { get; protected set; }
-        public float DistanceToTarget;
 
         public float BaseSpeed = 4.75f * Defs.UnitPixelSize;
-        public float VelocityMod = 0.72f;
-        public float VelocityCap = 1.00f;
-        public float Velocity;
-        public float MovementSpeed => BaseSpeed * Velocity;
 
         public event EventHandler<EntityMovementArgs> OnEntityMovement = delegate { };
 
@@ -49,10 +49,7 @@ namespace DarkNights
             MovementCompleted = false;
             IsMoving = true;
 
-            DistanceToTarget = MathF.Sqrt(
-                    MathF.Pow(Position.X - MovementTarget.X, 2) +
-                    MathF.Pow(Position.Y - MovementTarget.Y, 2));
-
+            currentPath = NavigationSystem.Path(Position, Target);
         }
 
         public void Move(float delta)
@@ -63,17 +60,34 @@ namespace DarkNights
                 if (MovementCompleted) { nextPosition = MovementTarget; }
                 else
                 {
-                    Velocity = MathF.Min(Velocity + VelocityMod * delta, VelocityCap);
-                    float travel = MovementSpeed * delta;
-                    DistanceToTarget -= travel;
+                    Vector2 destination = NextDestination ?? Position;
+                    Vector2 deltaMovement = destination - Position;
 
-                    Vector2 deltaMovement = Vector2.Normalize(MovementTarget - Position);
-                    nextPosition += deltaMovement * travel;
+                    float travel = BaseSpeed * delta;
 
-                    if (DistanceToTarget <= travel) MovementCompleted = true;
+                    if (deltaMovement.Length() <= travel) { nextPosition = destination; nextNode = null; }
+                    else nextPosition += Vector2.Normalize(deltaMovement) * travel;
                 }
                 SetPosition(nextPosition);
                 if (Position == MovementTarget) MovementTargetReached();
+            }
+        }
+
+        private Vector2? NextDestination
+        {
+            get
+            {
+                if (nextNode != null) return nextNode.Position;
+                if (currentPath != null)
+                {
+                    if (currentPath.Count == 0)
+                    {
+                        return null;
+                    }
+                    nextNode = currentPath.Pop();
+                    return nextNode.Position;
+                }
+                return null;
             }
         }
 
@@ -82,7 +96,7 @@ namespace DarkNights
             IsMoving = false;
             Position = MovementTarget;
             MovementCompleted = true;
-            Velocity = 0;
+            currentPath = null;
         }
 
 
