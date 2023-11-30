@@ -5,64 +5,57 @@ using System;
 
 namespace Nebula
 {
-	public class SpriteBatchRenderer : ISpriteBatchDraw
+	public class SpriteBatchRenderer : IControl
 	{
-		public Transform Transform => _transform;
-		public TextureData TextureData { get; private set; }
-		public Color Color { get; private set; }
-		public Vector2 TextureScale { get; private set; }
-		public Vector2 Size => new Vector2(TextureData.Texture.Width * TextureScale.X, TextureData.Texture.Height * TextureScale.Y);
-		public bool Drawing { get; set; }
-        public SpriteEffects Effects { get; private set; }
-		public float LayerDepth { get; set; }
-		public float RotationalOffset { get; set; }
-
-        private Transform _transform;
-
-		public SpriteBatchRenderer(Transform transform)
-		{
-			Graphics.AddBatchDraw(this);
-			_transform = transform;
-			TextureScale = Vector2.One;
-			Color = Color.White;
-			Drawing = true;
-			Effects = SpriteEffects.None;
-		}
-
-		public void SetTransform(Transform transform)
-		{
-			this._transform = transform;
-		}
-
-        public void Draw(SpriteBatch Batch)
+        #region Singleton
+        private static readonly NLog.Logger log = NLog.LogManager.GetLogger("GRAPHICS");
+        public static SpriteBatchRenderer Get
         {
-			if (Drawing)
-			{
-				if (Transform == null) return;
-				Batch.Draw(TextureData.Texture, Transform.Position, null, Color, Transform.Rotation - RotationalOffset, TextureData.Origin, TextureScale,Effects, LayerDepth + TextureData.LayerDepth);
-            }			
+            get
+            {
+                if (instance == null)
+                {
+                    instance = new SpriteBatchRenderer();
+                }
+
+                return instance;
+            }
+        }
+        private static SpriteBatchRenderer instance = null;
+        #endregion
+
+        public SpriteBatch SpriteBatch { get; private set; }
+
+        private SpriteBatchRenderer() { }
+
+        public void Create(NebulaRuntime runtime)
+        {
+            SpriteBatch = new SpriteBatch(NebulaRuntime.GraphicsDevice);
         }
 
-		public void SetTextureData(TextureData Data)
-		{
-			this.TextureData = Data;
-		}
+        public void Initialise()
+        {
+            throw new NotImplementedException();
+        }
 
-		public void SetColor(Color Color)
-		{
-			this.Color = Color;
-		}
+        public void LoadContent()
+        {
+            throw new NotImplementedException();
+        }
 
-		public void SetScale(Vector2 Scale)
-		{
-			this.TextureScale = Scale;
-		}
+        public void UnloadContent()
+        {
+            throw new NotImplementedException();
+        }
 
-		public void FlipHorziontal()
-		{
-			Effects |= SpriteEffects.FlipHorizontally;
-		}
+        public void Update(GameTime gameTime)
+        {
+            throw new NotImplementedException();
+        }
 
-		public bool Flipped => (Effects & SpriteEffects.FlipHorizontally) != 0;
+        public void Draw(GameTime gameTime)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

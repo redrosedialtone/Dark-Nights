@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Nebula;
-using Nebula.Base;
 using Nebula.Runtime;
 using Nebula.Systems;
 using static Nebula.Runtime.DrawUtils;
@@ -22,8 +21,6 @@ namespace DarkNights
         public static readonly NLog.Logger log = NLog.LogManager.GetLogger("WORLD");
 
         public List<string> Logs { get; set; } = new List<string>();
-        public LoggingLevel LoggingLevel { get => _loggingLevel; set => _loggingLevel = value; }
-        private LoggingLevel _loggingLevel = LoggingLevel.Warn;
 
         #endregion
         public World World;
@@ -44,52 +41,55 @@ namespace DarkNights
         {
             base.OnInitialized();
             gizmo = new WorldGizmo();
-            ApplicationController.AddGizmo(gizmo);
-            gizmo.SetDrawGizmo(true);
+            gizmo.Enabled = true;
             gizmo.DrawChunks = true;
             gizmo.DrawTiles = true;
         }
     }
 
-    public class WorldGizmo : IDrawGizmos
+    public class WorldGizmo : IGizmo
     {
-        public bool DrawGizmo { get; private set; }
+        public bool Enabled { get; set; }
         public bool DrawChunks { get { return _drawChunks; } set { _drawChunks = value; SetDrawChunks(); } }
         private bool _drawChunks = false;
         public bool DrawTiles { get { return _drawTiles; } set { _drawTiles = value; SetDrawTiles(); } }
         private bool _drawTiles = false;
 
         private Color chunkGraphColor => new Color(75, 75, 225, 75);
-        private DrawUtil chunkDrawCall;
+        private Polygon[] chunkPolys;
         private Color tileGraphColor => new Color(75,75,75,75);
-        private DrawUtil tileDrawCall;
+        private Polygon[] tilePolys;
 
         public WorldGizmo()
         {
-
+            Debug.NewWorldGizmo(this);
         }
 
-        public void DrawGizmos(SpriteBatch Batch)
+        public void Update() { }
+        
+        public void Draw()
         {
-            if (DrawGizmo)
+            if (_drawChunks)
             {
-                if (_drawChunks)
+                foreach (var chunk in chunkPolys)
                 {
-                    
+                    DrawUtils.DrawPolygonOutlineToWorld(chunk, chunkGraphColor, 2.0f);
                 }
             }
-        }
-
-        public void SetDrawGizmo(bool drawGizmo)
-        {
-            this.DrawGizmo = drawGizmo;
+            if (_drawTiles)
+            {
+                foreach (var tile in tilePolys)
+                {
+                    DrawUtils.DrawPolygonOutlineToWorld(tile, tileGraphColor, 1.0f);
+                }
+            }
         }
 
         private void SetDrawChunks()
         {
             if (_drawChunks)
             {
-                chunkDrawCall = null;
+                List<Polygon> polys = new List<Polygon>();
                 foreach (var chunk in WorldSystem.Get.World.Chunks())
                 {
                     Vector2[] corners = new Vector2[4];
@@ -100,16 +100,13 @@ namespace DarkNights
                     corners[3] = new Coordinates(0, Chunk.Size.Y);
 
                     var polygon = new Polygon(corners, chunk.Origin);
-                    chunkDrawCall += DrawUtils.DrawPolygonOutline(polygon, chunkGraphColor, 2f, drawType:DrawType.World);
+                    polys.Add(polygon);
                 }
+                chunkPolys = polys.ToArray();
             }
             else
             {
-                if (chunkDrawCall != null)
-                {
-                    DrawUtils.RemoveUtil(chunkDrawCall);
-                    chunkDrawCall = null;
-                }
+                chunkPolys = null;
             }
         }
 
@@ -117,31 +114,24 @@ namespace DarkNights
         {
             if (_drawTiles)
             {
-                tileDrawCall = null;
-                foreach (var chunk in WorldSystem.Get.World.Chunks())
+                List<Polygon> polys = new List<Polygon>();
+                foreach (var tile in WorldSystem.Get.World.Tiles())
                 {
-                    foreach (var tile in chunk.Tiles())
-                    {
-                        Vector2[] corners = new Vector2[4];
+                    Vector2[] corners = new Vector2[4];
 
-                        corners[0] = new Coordinates(0, 0);
-                        corners[1] = new Coordinates(1, 0);
-                        corners[2] = new Coordinates(1, 1);
-                        corners[3] = new Coordinates(0, 1);
+                    corners[0] = new Coordinates(0, 0);
+                    corners[1] = new Coordinates(1, 0);
+                    corners[2] = new Coordinates(1, 1);
+                    corners[3] = new Coordinates(0, 1);
 
-                        var polygon = new Polygon(corners, tile);
-                        tileDrawCall += DrawUtils.DrawPolygonOutline(polygon, tileGraphColor, 1f, drawType: DrawType.World);
-                    }
-
+                    var polygon = new Polygon(corners, tile);
+                    polys.Add(polygon);
                 }
+                tilePolys = polys.ToArray();
             }
             else
             {
-                if (tileDrawCall != null)
-                {
-                    DrawUtils.RemoveUtil(tileDrawCall);
-                    tileDrawCall = null;
-                }
+                tilePolys = null;
             }
         }
     }

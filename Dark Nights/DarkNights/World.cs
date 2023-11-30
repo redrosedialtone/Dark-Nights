@@ -13,8 +13,6 @@ namespace DarkNights
         private static readonly NLog.Logger log = NLog.LogManager.GetLogger("WORLD");
 
         public List<string> Logs { get; set; } = new List<string>();
-        public LoggingLevel LoggingLevel { get => _loggingLevel; set => _loggingLevel = value; }
-        private LoggingLevel _loggingLevel = LoggingLevel.Warn;
 
         #endregion
 
@@ -73,6 +71,17 @@ namespace DarkNights
             foreach (var chunk in allChunks.Values)
             {
                 yield return chunk;
+            }
+        }
+
+        public IEnumerable<Coordinates> Tiles()
+        {
+            foreach (var chunk in allChunks.Values)
+            {
+                foreach (var tile in chunk.Tiles())
+                {
+                    yield return tile;
+                }
             }
         }
 

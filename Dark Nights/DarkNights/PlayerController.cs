@@ -1,6 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Nebula.Base;
 using Nebula.Main;
 using Nebula.Runtime;
 using Nebula.Systems;
@@ -40,8 +39,8 @@ namespace DarkNights
             PlayerCharacter = new Character((0, 0));
 
             CharacterControlCtxt ctxt = new CharacterControlCtxt();
-            Input.Access.AddContext(ctxt);
-            Input.Access.EnableContext(ctxt.Name);
+            Input.Get.AddContext(ctxt);
+            Input.Get.EnableContext(ctxt.Name);
             ctxt.OnClick += this.OnClick;
 
             ApplicationController.Get.Initiate(this);
@@ -52,19 +51,19 @@ namespace DarkNights
             base.OnInitialized();
 
             characterGizmo = new CharacterGizmo();
-            characterGizmo.SetDrawGizmo(true);
+            characterGizmo.Enabled = true;
             characterGizmo.DrawCharacters = true;
             characterGizmo.DrawCharacterPaths = true;
 
             entityGizmo = new EntityGizmo();
-            entityGizmo.SetDrawGizmo(true);
+            entityGizmo.Enabled = true;
             entityGizmo.DrawWalls = true;
         }
 
-        public override void Tick(Time gameTime)
+        public override void Tick()
         {
-            base.Tick(gameTime);
-            PlayerCharacter.Tick(gameTime);
+            base.Tick();
+            PlayerCharacter.Tick();
         }
 
         public void OnMovementAxis(Vector2 movementAxis)
@@ -114,33 +113,41 @@ namespace DarkNights
         }
     }
 
-    public class CharacterGizmo : IDrawGizmos
+    public class CharacterGizmo : IGizmo
     {
-        public bool DrawGizmo { get; private set; }
+        public bool Enabled { get; set; }
 
         public bool DrawCharacters { get { return _drawCharacters; } set { _drawCharacters = value; SetDrawPlayer(); } }
         private bool _drawCharacters = false;
         private Color characterOutlineColor => new Color(125, 75, 125, 225);
-        private DrawUtil characterOutlineDrawCall;
         private Line pathLine;
 
         public bool DrawCharacterPaths { get { return _drawCharacterPaths; } set { _drawCharacterPaths = value; SetDrawPaths(); } }
         private bool _drawCharacterPaths = false;
         private Color characterPathColor => new Color(225, 225, 225, 225);
-        private DrawUtil characterPathDrawCall;
-
-
 
         private Polygon characterPolygon;
 
-        public void DrawGizmos(SpriteBatch Batch)
+        public CharacterGizmo()
+        {
+            Debug.NewWorldGizmo(this);
+        }
+
+        public void Update()
         {
 
         }
 
-        public void SetDrawGizmo(bool drawGizmo)
+        public void Draw()
         {
-            this.DrawGizmo = drawGizmo;
+            if (_drawCharacters)
+            {
+                DrawUtils.DrawPolygonOutlineToWorld(characterPolygon, characterOutlineColor, 5f);
+            }
+            if (_drawCharacterPaths)
+            {
+                DrawUtils.DrawLineToWorld(pathLine, characterPathColor);
+            }
         }
 
         private void SetDrawPlayer()
@@ -155,17 +162,13 @@ namespace DarkNights
                 corners[3] = new Coordinates(-1,1);
 
                 characterPolygon = new Polygon(corners, PlayerController.Get.PlayerCharacter.Position);
-                characterOutlineDrawCall += DrawUtils.DrawPolygonOutline(characterPolygon, characterOutlineColor, 3f, drawType: DrawType.World);
 
                 PlayerController.Get.PlayerCharacter.Movement.OnEntityMovement += UpdateGizmoPos;
             }
             else
             {
-                if (characterOutlineDrawCall != null)
-                {
-                    DrawUtils.RemoveUtil(characterOutlineDrawCall);
-                    characterOutlineDrawCall = null;
-                }
+                PlayerController.Get.PlayerCharacter.Movement.OnEntityMovement -= UpdateGizmoPos;
+                characterPolygon = null;
             }
         }
 
@@ -183,44 +186,52 @@ namespace DarkNights
         {
             if (_drawCharacterPaths)
             {
+                PlayerController.Get.PlayerCharacter.Movement.OnEntityMovement += UpdateGizmoPos;
                 pathLine = new Line(PlayerController.Get.PlayerCharacter.Position, PlayerController.Get.PlayerCharacter.Movement.MovementTarget);
-                characterPathDrawCall += DrawUtils.DrawLine(pathLine, characterPathColor, 1f, drawType: DrawType.World);
             }
             else
             {
-                if (characterPathDrawCall != null)
-                {
-                    DrawUtils.RemoveUtil(characterPathDrawCall);
-                    characterPathDrawCall = null;
-                }
+                PlayerController.Get.PlayerCharacter.Movement.OnEntityMovement -= UpdateGizmoPos;
+                pathLine = null;
             }
         }
     }
 
-    public class EntityGizmo : IDrawGizmos
+    public class EntityGizmo : IGizmo
     {
-        public bool DrawGizmo { get; private set; }
+        public bool Enabled { get; set; }
         public bool DrawWalls { get { return _drawWalls; } set { _drawWalls = value; SetDrawWalls(); } }
         private bool _drawWalls = false;
-        private Color wallOutlineColor => new Color(225, 25, 25, 225);
-        private DrawUtil playerDrawCall;
+        private Color wallOutlineColor => new Color(225, 25, 25, 125);
 
-        private Polygon characterPolygon;
+        private List<Polygon> entityPolygons;
 
-        public void DrawGizmos(SpriteBatch Batch)
+        public EntityGizmo()
+        {
+            Debug.NewWorldGizmo(this);
+        }
+
+        public void Update()
         {
 
         }
 
-        public void SetDrawGizmo(bool drawGizmo)
+        public void Draw()
         {
-            this.DrawGizmo = drawGizmo;
+            if (_drawWalls)
+            {
+                foreach (var poly in entityPolygons)
+                {
+                    DrawUtils.DrawPolygonOutlineToWorld(poly, wallOutlineColor, 1f);
+                }
+            }
         }
 
         private void SetDrawWalls()
         {
             if (_drawWalls)
             {
+                entityPolygons = new List<Polygon>();
                 PlayerController.Get.OnWallBuilt += AddWallOutline;
                 foreach (var wall in PlayerController.Get.Walls)
                 {
@@ -229,12 +240,8 @@ namespace DarkNights
             }
             else
             {
-                if (playerDrawCall != null)
-                {
-                    DrawUtils.RemoveUtil(playerDrawCall);
-                    playerDrawCall = null;
-                }
                 PlayerController.Get.OnWallBuilt -= AddWallOutline;
+                entityPolygons = null;
             }
         }
 
@@ -247,8 +254,8 @@ namespace DarkNights
             corners[2] = new Coordinates(1, 1);
             corners[3] = new Coordinates(0, 1);
 
-            characterPolygon = new Polygon(corners, wall.Coordinates);
-            playerDrawCall += DrawUtils.DrawPolygonOutline(characterPolygon, wallOutlineColor, 7f, drawType: DrawType.World);
+            var poly = new Polygon(corners, wall.Coordinates);
+            entityPolygons.Add(poly);
         }
     }
 

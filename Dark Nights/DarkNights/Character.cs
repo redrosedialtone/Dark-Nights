@@ -23,9 +23,9 @@ namespace DarkNights
             Movement.SetPosition(Coordinates);
         }
 
-        public void Tick(Time gameTime)
+        public void Tick()
         {
-            Movement.Move(gameTime.deltaTime);
+            Movement.Move(Time.DeltaTime);
         }
     }
 }

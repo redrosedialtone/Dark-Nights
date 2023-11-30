@@ -25,7 +25,7 @@ namespace Nebula.Main
             Thread debugThread = new Thread(DebugOutput);
             debugThread.Start();
             Logger.Info("Game Init..");
-            using (var engine = new NebulaRuntime())
+            using (var engine = NebulaRuntime.Get)
             {
                 engine.Run();
             }

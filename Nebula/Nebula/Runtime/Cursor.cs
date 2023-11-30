@@ -12,7 +12,6 @@ namespace Nebula
         public static Cursor Get => instance;
 
         public static Vector2 Position => instance._mousePosition;
-        public MousePositionGizmo mousePosGizmo;
         private Vector2 _mousePosition;
         private Texture2D CursorImage;
         private Vector2 CursorOrigin;
@@ -26,13 +25,12 @@ namespace Nebula
 
         public void Draw(GameTime gameTime)
         {
-            
+
         }
 
         public void Initialise()
         {
-            mousePosGizmo = new MousePositionGizmo();
-            mousePosGizmo.SetDrawGizmo(true);
+
         }
 
         public void LoadContent()

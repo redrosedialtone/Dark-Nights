@@ -30,7 +30,7 @@ namespace DarkNights
             new Coordinates(Coordinate.X, Coordinate.Y);
 
         public static Vector2 Centre(Coordinates Coordinate) =>
-            new Vector2(Coordinate.X*Defs.UnitPixelSize + Defs.UnitPixelSize / 4, Coordinate.Y*Defs.UnitPixelSize + Defs.UnitPixelSize / 4);
+            new Vector2(Coordinate.X*Defs.UnitPixelSize + Defs.UnitPixelSize / 2, Coordinate.Y*Defs.UnitPixelSize + Defs.UnitPixelSize / 2);
 
         public override string ToString()
         {

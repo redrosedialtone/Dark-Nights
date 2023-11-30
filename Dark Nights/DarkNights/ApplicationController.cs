@@ -11,11 +11,10 @@ using NLog;
 using System.Threading;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Input;
-using Nebula.Base;
 
 namespace DarkNights
 {
-    public class ApplicationController : Game, IApplicationController
+    public class ApplicationController : Game, INebulaGame
     {
         #region Static
         private static ApplicationController instance;
@@ -47,7 +46,7 @@ namespace DarkNights
             Content.RootDirectory = "Content";
             IsMouseVisible = false;
 
-            Nebula = new NebulaRuntime();
+            Nebula = NebulaRuntime.Get;
         }
 
         // Start is called before the first frame update
@@ -96,10 +95,7 @@ namespace DarkNights
             log.Info("> ..Initialised!");
         }
 
-        public void Create(NebulaRuntime rt)
-        {
-
-        }
+        public void Create(NebulaRuntime rt) { }
 
         protected override void LoadContent()
         {
@@ -116,8 +112,15 @@ namespace DarkNights
                 {
                     foreach (var sys in Systems)
                     {
-                        sys.Tick(Time.Access);
+                        sys.Update();
                     }
+                    if (Time.TickEnabled)
+                    {
+                        foreach (var sys in Systems)
+                        {
+                            sys.Tick();
+                        }
+                    }         
                 }
             }
 
@@ -134,6 +137,13 @@ namespace DarkNights
             if (IsActive)
             {
                 Nebula.Draw(gameTime);
+                if (Initialised) 
+                {
+                    foreach (var sys in Systems)
+                    {
+                        sys.Draw();
+                    }
+                }
                 base.Draw(gameTime);
             }
         }
@@ -149,11 +159,6 @@ namespace DarkNights
             log.Info("> APPLICATION CLOSED ");
             NLog.LogManager.Shutdown();
             Exit();
-        }
-
-        public static void AddGizmo(IDrawGizmos Gizmo)
-        {
-            Graphics.AddGizmo(Gizmo);
         }
     }
 }

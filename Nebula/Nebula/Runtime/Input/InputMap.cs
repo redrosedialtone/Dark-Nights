@@ -22,7 +22,8 @@ namespace Nebula.Main
             { InputID.Shift, Keys.LeftShift },
             { InputID.Lock, Keys.F },
             { InputID.LeftRotate, Keys.Q },
-            { InputID.RightRotate, Keys.E }
+            { InputID.RightRotate, Keys.E },
+            { InputID.ToggleDebug, Keys.LeftControl }
         };
 
         public IEnumerable<InputActionState> MapActions()
@@ -45,8 +46,8 @@ namespace Nebula.Main
 
         public IEnumerable<InputRangeState> MapRanges()
         {
-            var mouse = Input.Access.MousePointerEventData;
-            var prevMouse = Input.Access.PreviousMousePointerEventData;
+            var mouse = Input.Get.MousePointerEventData;
+            var prevMouse = Input.Get.PreviousMousePointerEventData;
 
             InputRangeState range = new InputRangeState();
             range.ID = InputID.Scroll;

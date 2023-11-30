@@ -8,25 +8,19 @@ using System.Linq;
 using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
+using static Nebula.Runtime.DrawUtils;
 
 namespace Nebula.Runtime
 {
     public static class DrawUtils
     {
+        private static SpriteBatch spriteBatch => Graphics.SpriteBatch;
 
-        public delegate void DrawUtil(SpriteBatch batch);
-        public delegate Vector2[] TrackedUtil();
-        public enum DrawType
-        {
-            Gizmo = 0,
-            World = 1
-        }
-
-        private static DrawUtil gizmoDrawCall;
-        private static DrawUtil worldDrawCall;
+        private static SpriteFont defaultFont;
         private static Texture2D lineTex;
         private static Texture2D circleTexture;
         private static Texture2D filledCircleTexture;
+
 
         public static void Setup(SpriteBatch batch)
         {
@@ -35,134 +29,93 @@ namespace Nebula.Runtime
             lineTex = _texture;
             circleTexture = Resources.Load<Texture2D>("Sprites/hollowCircle");
             filledCircleTexture = Resources.Load<Texture2D>("Sprites/filledCircle");
+            defaultFont = Resources.Load<SpriteFont>("FONT/Constantina");
         }
 
-        public static void DrawGizmoBuffer(SpriteBatch spriteBatch)
+        public static void DrawCircleToWorld(Circle circle, Color color, float thickness = 1f, float layerDepth = 0)
         {
-            gizmoDrawCall?.Invoke(spriteBatch);
+            float _scaleVal = circle.Radius / filledCircleTexture.Width;
+            Vector2 scale = new Vector2(_scaleVal, _scaleVal);
+            Vector2 pos = new Vector2(circle.Centre.X - _scaleVal * filledCircleTexture.Width / 2, circle.Centre.Y - _scaleVal * filledCircleTexture.Width / 2);
+            spriteBatch.Draw(filledCircleTexture, pos, null, color, 0, Vector2.Zero, scale, SpriteEffects.None, layerDepth);
         }
 
-        public static void DrawWorldBuffer(SpriteBatch spriteBatch)
+        public static void DrawCircleOutlineToWorld(Circle circle, Color color, float thickness = 1f, float layerDepth = 0)
         {
-            worldDrawCall?.Invoke(spriteBatch);
+            float _scaleVal = circle.Radius / circleTexture.Width;
+            Vector2 scale = new Vector2(_scaleVal, _scaleVal);
+            Vector2 pos = new Vector2(circle.Centre.X - _scaleVal * filledCircleTexture.Width / 2, circle.Centre.Y - _scaleVal * filledCircleTexture.Width / 2);
+            spriteBatch.Draw(circleTexture, pos, null, color, 0, Vector2.Zero, scale, SpriteEffects.None, layerDepth);
         }
 
-        /// <summary>
-        /// Draw a static polygon gizmo.
-        /// </summary>
-        /// <param name="polygon"></param>
-        /// <param name="color"></param>
-        /// <param name="thickness"></param>
-        /// <param name="layerDepth"></param>
-        /// <returns></returns>
-        public static DrawUtil DrawPolygonOutline(Polygon polygon, Color color, float thickness = 1f, float layerDepth = 0, DrawType drawType = DrawType.Gizmo)
+        public static void DrawPolygonOutlineToWorld(Polygon polygon, Color color, float thickness = 1f, float layerdepth = 0)
         {
-            DrawUtil ret = null;
-            for (int i = 0; i < polygon.Points.Length; i++)
+            DrawPolygonOutlineToWorld(polygon.Position, polygon.Points, color, thickness, layerdepth);
+        }
+
+        public static void DrawPolygonOutlineToWorld(Vector2 Position, Vector2[] Points, Color color, float thickness = 1f, float layerDepth = 0)
+        {
+            for (int i = 0; i < Points.Length; i++)
             {
-                Vector2 v = polygon.Points[i];
-                Vector2 vN = polygon.Points[(i + 1) % polygon.Points.Length];
+                Vector2 v = Points[i];
+                Vector2 vN = Points[(i + 1) % Points.Length];
                 var d = Vector2.Distance(v, vN);
                 var a = (float)Math.Atan2(vN.Y - v.Y, vN.X - v.X);
                 var origin = new Vector2(0f, 0.5f);
                 var scale = new Vector2(d, thickness);
 
-                DrawUtil del;
-                if (drawType == DrawType.Gizmo)
-                {
-                    del = new DrawUtil(delegate (SpriteBatch batch)
-                    {
-                        batch.Draw(lineTex, v + polygon.Position, null, color, a, origin, scale, SpriteEffects.None, layerDepth);
-                    });
-                }
-                else
-                {
-                    del = new DrawUtil(delegate (SpriteBatch batch)
-                    {
-                        batch.Draw(lineTex, v + polygon.Position, null, color, a, origin, new Vector2(scale.X, scale.Y / Camera.Get.Zoom), SpriteEffects.None, layerDepth);
-                    });
-                }
-
-                ret += del;
+                spriteBatch.Draw(lineTex, v + Position, null, color, a, origin, new Vector2(scale.X, scale.Y / Camera.Get.Zoom), SpriteEffects.None, layerDepth);
             }
-            if(drawType== DrawType.Gizmo) gizmoDrawCall += ret;
-            else worldDrawCall+= ret;
-            return ret;
         }
 
-        public static DrawUtil DrawCircleOutline(Circle circle, Color color, float thickness = 1f, float layerDepth = 0, DrawType drawType = DrawType.Gizmo)
+        public static void DrawPolygonOutlineToScreen(Polygon polygon, Color color, float thickness = 1f, float layerdepth = 0)
         {
-            DrawUtil ret = null;
-            float _scaleVal = circle.Radius / 2.0f;
-            Vector2 scale = new Vector2(_scaleVal, _scaleVal);
-            ret = new DrawUtil(delegate (SpriteBatch batch)
-            {
-                batch.Draw(circleTexture, circle.Centre, null, color, 0, Vector2.Zero, scale, SpriteEffects.None, layerDepth);
-            });
-            if (drawType == DrawType.Gizmo) gizmoDrawCall += ret;
-            else worldDrawCall += ret;
-            return ret;
+            DrawPolygonOutlineToScreen(polygon.Position, polygon.Points, color, thickness, layerdepth);
         }
 
-        public static DrawUtil DrawCircle(Circle circle, Color color, float thickness = 1f, float layerDepth = 0, DrawType drawType = DrawType.Gizmo)
+        public static void DrawPolygonOutlineToScreen(Vector2 Position, Vector2[] Points, Color color, float thickness = 1f, float layerDepth = 0)
         {
-            DrawUtil ret = null;
-            float _scaleVal = circle.Radius / 2.0f;
-            Vector2 scale = new Vector2(_scaleVal, _scaleVal);
-            ret = new DrawUtil(delegate (SpriteBatch batch)
+            for (int i = 0; i < Points.Length; i++)
             {
-                batch.Draw(filledCircleTexture, circle.Centre, null, color, 0, Vector2.Zero, scale, SpriteEffects.None, layerDepth);
-            });
-            if (drawType == DrawType.Gizmo) gizmoDrawCall += ret;
-            else worldDrawCall += ret;
-            return ret;
-        }
+                Vector2 v = Points[i];
+                Vector2 vN = Points[(i + 1) % Points.Length];
+                var d = Vector2.Distance(v, vN);
+                var a = (float)Math.Atan2(vN.Y - v.Y, vN.X - v.X);
+                var origin = new Vector2(0f, 0.5f);
+                var scale = new Vector2(d, thickness);
 
-        public static DrawUtil DrawLine(Line line, Color color, float thickness = 1f, float layerDepth = 0, DrawType drawType = DrawType.Gizmo)
-        {
-            DrawUtil ret = null;
-
-            if (drawType == DrawType.Gizmo)
-            {
-                ret = new DrawUtil(delegate (SpriteBatch batch)
-                {
-                    var d = Vector2.Distance(line.From, line.To);
-                    var a = (float)Math.Atan2(line.To.Y - line.From.Y, line.To.X - line.From.X);
-                    var origin = new Vector2(0f, 0.5f);
-                    var scale = new Vector2(d, thickness);
-                    batch.Draw(lineTex, line.From, null, color, a, origin, scale, SpriteEffects.None, layerDepth);
-                });
+                spriteBatch.Draw(lineTex, v + Position, null, color, a, origin, new Vector2(scale.X, scale.Y), SpriteEffects.None, layerDepth);
             }
-            else
-            {
-                ret = new DrawUtil(delegate (SpriteBatch batch)
-                {
-                    var d = Vector2.Distance(line.From, line.To);
-                    var a = (float)Math.Atan2(line.To.Y - line.From.Y, line.To.X - line.From.X);
-                    var origin = new Vector2(0f, 0.5f);
-                    var scale = new Vector2(d, thickness);
-                    batch.Draw(lineTex, line.From, null, color, a, origin, new Vector2(scale.X, scale.Y / Camera.Get.Zoom), SpriteEffects.None, layerDepth);
-                });
-            }
-            if (drawType == DrawType.Gizmo) gizmoDrawCall += ret;
-            else worldDrawCall += ret;
-            return ret;
         }
 
-        public static void Draw(Polygon polygon, Color color, float thickness = 1f, float layerDepth = 0)
+        public static void DrawLineToWorld(Line line, Color color, float thickness = 1f, float layerDepth = 0)
         {
-
+            DrawLineToWorld(line.From, line.To, color, thickness, layerDepth);
         }
 
-
-        public static void RemoveUtil(DrawUtil cb)
+        public static void DrawLineToWorld(Vector2 A, Vector2 B, Color color, float thickness = 1f, float layerDepth = 0)
         {
-            gizmoDrawCall -= cb;
+            var d = Vector2.Distance(A,B);
+            var a = (float)Math.Atan2(B.Y - A.Y, B.X - A.X);
+            var origin = new Vector2(0f, 0.5f);
+            var scale = new Vector2(d, thickness);
+            spriteBatch.Draw(lineTex, A, null, color, a, origin, new Vector2(scale.X, scale.Y / Camera.Get.Zoom), SpriteEffects.None, layerDepth);
         }
 
-        public static void DrawCircle()
+        public static void DrawText(SpriteFont spriteFont, string text, Vector2 position, Color color, float layer)
         {
-
+            DrawText(spriteBatch, spriteFont, text, position, color, 0f, Vector2.Zero, 1.0f, SpriteEffects.None, 1.0f);
         }
+
+        public static void DrawText(string text, Vector2 position, Color color, float scale = 1f)
+        {
+            DrawText(spriteBatch, defaultFont, text, position, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 1.0f);
+        }
+
+        private static void DrawText(SpriteBatch batch, SpriteFont spriteFont, string text, Vector2 position, Color color, float rotation, Vector2 origin, float scale, SpriteEffects effects, float layer)
+        {
+            batch.DrawString(spriteFont, text, position, color, rotation, origin, scale, effects, layer);
+        }
+
     }
 }

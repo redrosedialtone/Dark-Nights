@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using Nebula.Base;
 using Nebula.Systems;
 using NLog.Fluent;
 
@@ -163,11 +162,6 @@ namespace Nebula.Main
 
     public class NebulaCamera : Camera, IDefaultCtxt
     {
-
-        private PrintCameraPositionGizmo PositionGizmo;
-        private DrawCameraPositionGizmo drawCameraPositionGizmo;
-        private DrawViewportGizmo drawViewPortGizmo;
-
         private bool _runningCameraMovement = false;
         private bool _cameraMovementActuated = false;
         private Vector2 cameraTarget;
@@ -182,13 +176,6 @@ namespace Nebula.Main
             Input.DefaultCtxt.OnLock += OnLock;
 
             CameraLock = Input.DefaultCtxt.Lock;
-
-            PositionGizmo = new PrintCameraPositionGizmo();
-            PositionGizmo.SetDrawGizmo(true);
-            drawCameraPositionGizmo = new DrawCameraPositionGizmo();
-            drawCameraPositionGizmo.SetDrawGizmo(true);
-            drawViewPortGizmo = new DrawViewportGizmo();
-            drawViewPortGizmo.SetDrawGizmo(true);
         }
 
         public override void Update(GameTime time)

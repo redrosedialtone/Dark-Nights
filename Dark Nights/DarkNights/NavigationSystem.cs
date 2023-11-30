@@ -1,6 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Nebula.Base;
 using Nebula.Main;
 using Nebula.Runtime;
 using Nebula.Systems;
@@ -34,9 +33,9 @@ namespace DarkNights
             ApplicationController.Get.Initiate(this);
         }
 
-        public override void Tick(Time gameTime)
+        public override void Tick()
         {
-            base.Tick(gameTime);
+            base.Tick();
         }
 
         public override void OnInitialized()
@@ -44,8 +43,8 @@ namespace DarkNights
             base.OnInitialized();
 
             NavigationGizmo navGizmo = new NavigationGizmo();
-            navGizmo.SetDrawGizmo(true);
-            navGizmo.DrawWalls = true;
+            navGizmo.Enabled = true;
+            navGizmo.DrawNodes = true;
         }
 
         public static Stack<INavNode> Path(Vector2 A, Vector2 B)
@@ -141,29 +140,36 @@ namespace DarkNights
         }
     }
 
-    public class NavigationGizmo : IDrawGizmos
+    public class NavigationGizmo : IGizmo
     {
-        public bool DrawGizmo { get; private set; }
-        public bool DrawWalls { get { return _drawWalls; } set { _drawWalls = value; SetDrawWalls(); } }
-        private bool _drawWalls = false;
-        private Color impassableOutline => new Color(225, 25, 25, 225);
-        private Color passableOutline => new Color(225, 225, 25, 225);
-        private DrawUtil wallDrawCall;
+        public bool Enabled { get; set; }
+        public bool DrawNodes { get { return _drawNodes; } set { _drawNodes = value; SetDrawWalls(); } }
+        private bool _drawNodes = false;
+        private List<Circle> nodePolygons;
 
-        public void DrawGizmos(SpriteBatch Batch)
+        public NavigationGizmo()
         {
-
+            Debug.NewWorldGizmo(this);
         }
 
-        public void SetDrawGizmo(bool drawGizmo)
+        public void Update() { }
+
+        public void Draw()
         {
-            this.DrawGizmo = drawGizmo;
+            if (_drawNodes)
+            {
+                foreach (var poly in nodePolygons)
+                {
+                    DrawUtils.DrawCircleToWorld(poly, Color.White);
+                }
+            }
         }
 
         private void SetDrawWalls()
         {
-            if (_drawWalls)
+            if (_drawNodes)
             {
+                nodePolygons = new List<Circle>();
                 NavigationSystem.Get.NavNodeUpdate += AddWallOutline;
                 foreach (var wall in NavigationSystem.Get.nodes)
                 {
@@ -172,18 +178,14 @@ namespace DarkNights
             }
             else
             {
-                if (wallDrawCall != null)
-                {
-                    DrawUtils.RemoveUtil(wallDrawCall);
-                    wallDrawCall = null;
-                }
+                nodePolygons = null;
                 NavigationSystem.Get.NavNodeUpdate -= AddWallOutline;
             }
         }
 
         private void AddWallOutline(INavNode node)
         {
-            Circle circle = new Circle(Coordinates.Centre(node.Position), 0.5f);
+            Circle circle = new Circle(Coordinates.Centre(node.Coordinates), Defs.UnitPixelSize/4);
             Color col;
             switch (node.Type)
             {
@@ -191,22 +193,23 @@ namespace DarkNights
                     col = Color.White;
                     break;
                 case NavNodeType.Impassable:
-                    col = Color.Red;
+                    col = new Color(225, 25, 25, 100);
                     break;
                 case NavNodeType.Pathing:
-                    col = Color.Yellow;
+                    col = new Color(225, 225, 25, 100);
                     break;
                 case NavNodeType.Edge:
-                    col = Color.Blue;
+                    col = new Color(25, 25, 225, 100);
                     break;
                 case NavNodeType.Destination:
-                    col = Color.Green;
+                    col = new Color(25, 225, 25, 100);
                     break;
                 default:
                     col = Color.White;
                     break;
             }
-            wallDrawCall += DrawUtils.DrawCircle(circle, col, drawType: DrawType.World);
+            nodePolygons.Add(circle);
+            //wallDrawCall += DrawUtils.DrawCircle(circle, col, drawType: DrawType.World);
         }
     }
 }

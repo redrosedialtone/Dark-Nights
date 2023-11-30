@@ -26,6 +26,7 @@ namespace Nebula.Main
         MiddleMouseButton = 9,
         LeftRotate = 10,
         RightRotate = 11,
+        ToggleDebug = 12,
     }
 
     public class MouseButtonActionState : IInputData
@@ -139,8 +140,9 @@ namespace Nebula.Main
             this.ID = ID;
         }
 
-        public bool Active => Pressed();
+        public bool Active => Pressed() || ReleasedThisFrame;
         public bool PressedThisFrame => Current.State == ButtonState.Pressed && Previous.State == ButtonState.Released;
+        public bool ReleasedThisFrame => Current.State == ButtonState.Released && Previous.State == ButtonState.Pressed;
 
         public bool Pressed()
         {
@@ -169,8 +171,22 @@ namespace Nebula.Main
 
     public class Input : IControl
     {
+        #region Singleton
         private static readonly NLog.Logger log = NLog.LogManager.GetLogger("INPUT");
-        public static Input Access;
+        public static Input Get
+        {
+            get
+            {
+                if (instance == null)
+                {
+                    instance = new Input();
+                }
+
+                return instance;
+            }
+        }
+        private static Input instance = null;
+        #endregion
 
         private List<IPointerEventListener> PointerListeners;
 
@@ -187,9 +203,10 @@ namespace Nebula.Main
         public Dictionary<string, IInputContext> InactiveCtxt = new Dictionary<string, IInputContext>();
         public Dictionary<string, IInputContext> ActiveCtxt = new Dictionary<string, IInputContext>();
 
+        private Input() { }
+
         public void Create(NebulaRuntime game)
         {
-            Access = this;
             PointerListeners = new List<IPointerEventListener>();
         }
 
@@ -301,8 +318,8 @@ namespace Nebula.Main
         #region Mouse
         public static void AddPointerEventListener(IPointerEventListener Listener)
         {
-            Access.PointerListeners.Add(Listener);
-            log.Debug("Adding Listener.. " + Access.PointerListeners.Count);
+            Get.PointerListeners.Add(Listener);
+            log.Debug("Adding Listener.. " + Get.PointerListeners.Count);
         }
 
         private void ProcessMouseData()
@@ -445,9 +462,10 @@ namespace Nebula.Main
             Inputs.Add(InputID.MiddleMouseButton, new MouseButtonActionState(InputID.MiddleMouseButton));
             Inputs.Add(InputID.LeftRotate, new InputActionData(InputID.LeftRotate));
             Inputs.Add(InputID.RightRotate, new InputActionData(InputID.RightRotate));
+            Inputs.Add(InputID.ToggleDebug, new InputActionData(InputID.ToggleDebug));
         }
 
-        public static bool Active(InputID ID) => Access.Instance_Active(ID);
+        public static bool Active(InputID ID) => Get.Instance_Active(ID);
 
         public bool Instance_Active(InputID ID)
         {
@@ -459,7 +477,7 @@ namespace Nebula.Main
             return false;
         }
 
-        public static IInputData Data(InputID ID) => Access.Instance_Data(ID);
+        public static IInputData Data(InputID ID) => Get.Instance_Data(ID);
 
         public IInputData Instance_Data(InputID ID)
         {
@@ -468,6 +486,20 @@ namespace Nebula.Main
                 return data;
             }
             return null;
+        }
+
+        public static bool OnPress(InputID ID) => Get.Instance_OnPress(ID);
+
+        private bool Instance_OnPress(InputID ID)
+        {
+            if (Inputs.TryGetValue(ID, out IInputData input))
+            {
+                if (input is InputActionData data)
+                {
+                    return data.PressedThisFrame;
+                }
+            }
+            return false;
         }
     }
 }

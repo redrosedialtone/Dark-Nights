@@ -11,16 +11,30 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Nebula.Systems;
 using System.Xml.Linq;
+using Nebula.Runtime;
 
 namespace Nebula.Main
 {
     public class NebulaRuntime : IDisposable
     {
+        #region Singleton
         private static readonly NLog.Logger log = NLog.LogManager.GetLogger("ENGINE");
+        public static NebulaRuntime Get
+        {
+            get
+            {
+                if (instance == null)
+                {
+                    instance = new NebulaRuntime();
+                }
 
+                return instance;
+            }
+        }
+        private static NebulaRuntime instance = null;
+        #endregion
 
-        public static NebulaRuntime Access;
-        public static IApplicationController Game;
+        public static INebulaGame Game;
         public static string dataPath => Game.DataPath;
         public static ContentManager Content => Game.Content;
         public static GraphicsDeviceManager GraphicsDeviceMgr => Game.GraphicsDeviceMgr;
@@ -28,16 +42,13 @@ namespace Nebula.Main
 
         private IControl[] Controls;
 
-        private SmartFramerate frameCountGizmo;
         private DrawCallGizmo drawCallGizmo;
-        private OriginGizmo originGizmo;
+        private DebugModeGizmo debugGizmo;
+        private FramerateGizmo frameGizmo;
 
-        public NebulaRuntime()
-        {
-            Access = this;
-        }
+        private NebulaRuntime() { }
 
-        public void Initialize(IApplicationController Controller)
+        public void Initialize(INebulaGame Controller)
         {
             Game = Controller;
             log.Info("Initializing Runtime Controls...");
@@ -47,35 +58,32 @@ namespace Nebula.Main
                 throw new NullReferenceException();
             }
 
-            Controls = new IControl[7];
-            Controls[0] = new Graphics();
+            Controls = new IControl[6];
+            Controls[0] = Graphics.Get;
             Controls[1] = new Interface();
-            Controls[2] = new Input();
-            Controls[3] = new Time();
-            Controls[4] = new Resources(Content);
-            Controls[5] = new Cursor();
-            Controls[6] = new NebulaCamera();
+            Controls[2] = Input.Get;
+            Controls[3] = Resources.Get;
+            Controls[4] = new Cursor();
+            Controls[5] = new NebulaCamera();
             Controls[0].Create(this);
             Controls[1].Create(this);
             Controls[2].Create(this);
             Controls[3].Create(this);
             Controls[4].Create(this);
             Controls[5].Create(this);
-            Controls[6].Create(this);
             foreach (var control in Controls)
             {
                 control.Initialise();
             }
-            frameCountGizmo = new SmartFramerate(2);
-            Graphics.AddGizmo(frameCountGizmo);
-            frameCountGizmo.SetDrawGizmo(true);
 
             drawCallGizmo = new DrawCallGizmo();
-            Graphics.AddGizmo(drawCallGizmo);
-            drawCallGizmo.SetDrawGizmo(true);
+            drawCallGizmo.Enabled = true;
 
-            originGizmo = new OriginGizmo();
-            originGizmo.SetDrawGizmo(false);
+            debugGizmo = new DebugModeGizmo();
+            debugGizmo.Enabled = true;
+
+            frameGizmo = new FramerateGizmo(2);
+            frameGizmo.Enabled = true;
         }
 
         public void LoadContent()
@@ -97,6 +105,8 @@ namespace Nebula.Main
 
         public void Update(GameTime gameTime)
         {
+            Time.Update(gameTime);
+            Runtime.Debug.Update();
             foreach (var control in Controls)
             {
                 control.Update(gameTime);
@@ -105,6 +115,7 @@ namespace Nebula.Main
 
         public void Draw(GameTime gameTime)
         {
+            Time.Frame();
             foreach (var control in Controls)
             {
                 control.Draw(gameTime);
@@ -118,12 +129,5 @@ namespace Nebula.Main
         {
             throw new NotImplementedException();
         }
-
-        //public void ExitApplication()
-        //{
-        //    log.Info("> APPLICATION CLOSED <");
-        //    NLog.LogManager.Shutdown();
-        //    Exit();
-        //}
     }
 }

@@ -6,53 +6,44 @@ namespace Nebula.Main
 {
     public class Resources : IControl
     {
+
+        #region Singleton
         private static readonly NLog.Logger log = NLog.LogManager.GetLogger("RESOURCES");
-        public static Resources Access;
-
-        public static ContentManager Content => Access._contentManager;
-        private readonly ContentManager _contentManager;
-        private NebulaRuntime RUNTIME;
-
-        public Resources(ContentManager contentManager)
+        public static Resources Get
         {
-            _contentManager = contentManager;
+            get
+            {
+                if (instance == null)
+                {
+                    instance = new Resources();
+                }
+
+                return instance;
+            }
         }
+        private static Resources instance = null;
+        #endregion
+
+        public ContentManager Content => NebulaRuntime.Content;
+
+        private Resources() { }
 
         public void Create(NebulaRuntime game)
         {
             log.Info("> ..");
-            RUNTIME = game;
-            Access = this;
         }
 
-        public void Initialise()
-        {
-            
-        }
+        public void Initialise() { }
+        public void LoadContent() { }
 
-        public void LoadContent()
-        {
-            
-        }
+        public void UnloadContent() { }
+        public void Update(GameTime gameTime) { }
 
-        public void UnloadContent()
-        {
-            
-        }
-
-        public void Update(GameTime gameTime)
-        {
-            
-        }
-
-        public void Draw(GameTime gameTime)
-        {
-            
-        }
+        public void Draw(GameTime gameTime) { }
 
         public static T Load<T>(string _content)
         {
-            return Access.Instance_Load<T>(_content);
+            return Get.Instance_Load<T>(_content);
         }
 
         private T Instance_Load<T>(string _content)
@@ -60,7 +51,7 @@ namespace Nebula.Main
             log.Trace($"Attempting to load \"{_content}\"..");
             try
             {
-                return _contentManager.Load<T>(_content);
+                return Content.Load<T>(_content);
             }
             catch (Exception)
             {

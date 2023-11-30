@@ -11,7 +11,7 @@ namespace Nebula.Systems
     {
         void Init();
         void OnInitialized();
-        void Tick(Time gameTime);
+        void Tick();
 
         bool Initialized { get; }
     }
@@ -21,7 +21,9 @@ namespace Nebula.Systems
         public bool Initialized { get; protected set; }
         public abstract void Init();
         public virtual void OnInitialized() { }
-        public virtual void Tick(Time gameTime) { }
+        public virtual void Tick() { }
+        public virtual void Update() { }
+        public virtual void Draw() { }
     }
 
 }
