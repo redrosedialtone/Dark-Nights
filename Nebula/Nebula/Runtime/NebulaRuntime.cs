@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 using Nebula.Systems;
 using System.Xml.Linq;
 using Nebula.Runtime;
+using Debug = Nebula.Runtime.Debug;
 
 namespace Nebula.Main
 {
@@ -84,6 +85,8 @@ namespace Nebula.Main
 
             frameGizmo = new FramerateGizmo(2);
             frameGizmo.Enabled = true;
+
+            Debug.Initialised();
         }
 
         public void LoadContent()

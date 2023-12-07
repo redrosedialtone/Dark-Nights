@@ -7,23 +7,25 @@ namespace Nebula.Main
 
     public interface IInputMap
     {
+        string Name { get; }
         IEnumerable<InputActionState> MapActions();
         IEnumerable<InputRangeState> MapRanges();
     }
 
     public class KeyboardInputMap : IInputMap
     {
-        public static Dictionary<InputID, Keys> ActionMap = new Dictionary<InputID, Keys>()
+        public string Name => "nebulaKeyboard";
+
+        public static Dictionary<string, Keys> ActionMap = new Dictionary<string, Keys>()
         {
-            { InputID.Left, Keys.A },
-            { InputID.Right, Keys.D },
-            { InputID.Up, Keys.W },
-            { InputID.Down, Keys.S },
-            { InputID.Shift, Keys.LeftShift },
-            { InputID.Lock, Keys.F },
-            { InputID.LeftRotate, Keys.Q },
-            { InputID.RightRotate, Keys.E },
-            { InputID.ToggleDebug, Keys.LeftControl }
+            { "InputID.Left", Keys.A },
+            { "InputID.Right", Keys.D },
+            { "InputID.Up", Keys.W },
+            { "InputID.Down", Keys.S },
+            { "InputID.Shift", Keys.LeftShift },
+            { "InputID.Lock", Keys.F },
+            { "InputID.LeftRotate", Keys.Q },
+            { "InputID.RightRotate", Keys.E },
         };
 
         public IEnumerable<InputActionState> MapActions()
@@ -33,7 +35,7 @@ namespace Nebula.Main
             foreach (var input in ActionMap)
             {
                 Keys button = input.Value;
-                InputID ID = input.Key;
+                string ID = input.Key;
 
                 bool up = keyboard.IsKeyUp(button);
                 InputActionState action = new InputActionState();
@@ -50,7 +52,7 @@ namespace Nebula.Main
             var prevMouse = Input.Get.PreviousMousePointerEventData;
 
             InputRangeState range = new InputRangeState();
-            range.ID = InputID.Scroll;
+            range.ID = "InputID.Scroll";
             range.State = mouse.ScrollWheelValue - prevMouse.ScrollWheelValue;
 
             yield return range;

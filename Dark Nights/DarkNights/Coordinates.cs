@@ -15,7 +15,7 @@ namespace DarkNights
         public Coordinates((int X, int Y) Coordinates)
             : this(Coordinates.X, Coordinates.Y) { }
         public Coordinates(Vector2 Coordinates)
-            : this((int)MathF.Floor(Coordinates.X), (int)MathF.Floor(Coordinates.Y)) { }
+            : this((int)MathF.Floor(Coordinates.X / Defs.UnitPixelSize), (int)MathF.Floor(Coordinates.Y / Defs.UnitPixelSize)) { }
 
         public Coordinates(int X, int Y)
         { this.X = X; this.Y = Y; }

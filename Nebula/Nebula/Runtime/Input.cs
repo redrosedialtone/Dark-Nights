@@ -12,23 +12,6 @@ using System.Xml.Linq;
 
 namespace Nebula.Main
 {
-    public enum InputID
-    {
-        LeftMouseButton = 0,
-        RightMouseButton = 1,
-        Left = 2,
-        Right = 3,
-        Up = 4,
-        Down = 5,
-        Scroll = 6,
-        Shift = 7,
-        Lock = 8,
-        MiddleMouseButton = 9,
-        LeftRotate = 10,
-        RightRotate = 11,
-        ToggleDebug = 12,
-    }
-
     public class MouseButtonActionState : IInputData
     {
         public PointerEventData buttonData;
@@ -36,10 +19,10 @@ namespace Nebula.Main
         public ButtonState previousState;
         public Point mousePosition;
 
-        public InputID ID { get; set; }
+        public string ID { get; set; }
         public bool Active => PressedThisFrame();
 
-        public MouseButtonActionState(InputID ID)
+        public MouseButtonActionState(string ID)
         {
             this.ID = ID;
         }
@@ -73,13 +56,13 @@ namespace Nebula.Main
 
     public interface IInputData
     {
-        public InputID ID { get; }
+        public string ID { get; }
         public bool Active { get; }
     }
 
     public struct InputActionState
     {
-        public InputID ID;
+        public string ID;
         public ButtonState State;
 
         public static bool operator ==(InputActionState a, InputActionState b) =>
@@ -105,7 +88,7 @@ namespace Nebula.Main
 
     public struct InputRangeState
     {
-        public InputID ID;
+        public string ID;
         public float State;
 
         public static bool operator ==(InputRangeState a, InputRangeState b) =>
@@ -131,11 +114,11 @@ namespace Nebula.Main
 
     public class InputActionData : IInputData
     {
-        public InputID ID { get; private set; }
+        public string ID { get; private set; }
         public InputActionState Current;
         public InputActionState Previous;
 
-        public InputActionData(InputID ID)
+        public InputActionData(string ID)
         {
             this.ID = ID;
         }
@@ -157,11 +140,11 @@ namespace Nebula.Main
 
     public class InputRangeData : IInputData
     {
-        public InputID ID { get; private set; }
+        public string ID { get; private set; }
         public InputRangeState Current;
         public InputRangeState Previous;
 
-        public InputRangeData(InputID ID)
+        public InputRangeData(string ID)
         {
             this.ID = ID;
         }
@@ -200,6 +183,7 @@ namespace Nebula.Main
         private KeyboardInputMap kbInput;
         public static DefaultCtxt DefaultCtxt;
 
+        public Dictionary<string, IInputMap> ActiveMaps = new Dictionary<string, IInputMap>();
         public Dictionary<string, IInputContext> InactiveCtxt = new Dictionary<string, IInputContext>();
         public Dictionary<string, IInputContext> ActiveCtxt = new Dictionary<string, IInputContext>();
 
@@ -219,15 +203,16 @@ namespace Nebula.Main
         {
             SetupInputs();
 
-            leftClickButtonData = (MouseButtonActionState)Data(InputID.LeftMouseButton);
+            leftClickButtonData = (MouseButtonActionState)Data("InputID.LeftMouseButton");
             leftClickButtonData.buttonData = new PointerEventData();
-            rightClickButtonData = (MouseButtonActionState)Data(InputID.RightMouseButton);
+            rightClickButtonData = (MouseButtonActionState)Data("InputID.RightMouseButton");
             rightClickButtonData.buttonData = new PointerEventData();
-            middleClickButtonData = (MouseButtonActionState)Data(InputID.MiddleMouseButton);
+            middleClickButtonData = (MouseButtonActionState)Data("InputID.MiddleMouseButton");
             middleClickButtonData.buttonData = new PointerEventData();
 
 
             kbInput = new KeyboardInputMap();
+            ActiveMaps.Add(kbInput.Name, kbInput);
 
             DefaultCtxt = new DefaultCtxt();
             AddContext(DefaultCtxt);
@@ -272,35 +257,47 @@ namespace Nebula.Main
             else log.Debug($"InputCtxt {name} not active!");
         }
 
+        public void AddInputMap(IInputMap Map)
+        {
+            if (ActiveMaps.ContainsKey(Map.Name)) { log.Debug($"InputCtxt {Map.Name} already exists!"); return; }
+            ActiveMaps.Add(Map.Name, Map);
+        }
+
         public void Update(GameTime gameTime)
         {
             ProcessMouseData();
 
-            foreach (var input in kbInput.MapActions())
+            if (ActiveMaps.Count > 0)
             {
-                var data = Data(input.ID);
-                if(data is InputActionData actionData)
+                foreach (var map in ActiveMaps.Values)
                 {
-                    actionData.Previous = actionData.Current;
-                    actionData.Current = input;
-
-                    if (actionData.Current != actionData.Previous)
+                    foreach (var input in map.MapActions())
                     {
-                        log.Debug($"{input.ID.ToString()}::{actionData.Current.State.ToString()}");
+                        var data = Data(input.ID);
+                        if (data is InputActionData actionData)
+                        {
+                            actionData.Previous = actionData.Current;
+                            actionData.Current = input;
+
+                            if (actionData.Current != actionData.Previous)
+                            {
+                                log.Debug($"{input.ID.ToString()}::{actionData.Current.State.ToString()}");
+                            }
+                        }
                     }
-                } 
-            }
-            foreach (var range in kbInput.MapRanges())
-            {
-                var data = Data(range.ID);
-                if (data is InputRangeData rangeData)
-                {
-                    rangeData.Previous = rangeData.Current;
-                    rangeData.Current = range;
-
-                    if (rangeData.Current != rangeData.Previous)
+                    foreach (var range in map.MapRanges())
                     {
-                        log.Debug($"{range.ID.ToString()}::{rangeData.Current.State.ToString()}");
+                        var data = Data(range.ID);
+                        if (data is InputRangeData rangeData)
+                        {
+                            rangeData.Previous = rangeData.Current;
+                            rangeData.Current = range;
+
+                            if (rangeData.Current != rangeData.Previous)
+                            {
+                                log.Debug($"{range.ID.ToString()}::{rangeData.Current.State.ToString()}");
+                            }
+                        }
                     }
                 }
             }
@@ -446,28 +443,51 @@ namespace Nebula.Main
 
         //Keyboard Actions
 
-        private Dictionary<InputID, IInputData> Inputs = new Dictionary<InputID, IInputData>();
+        private Dictionary<string, IInputData> Inputs = new Dictionary<string, IInputData>();
+
+        public void AddInput(string ID, IInputData Data)
+        {
+            if (Inputs.ContainsKey(ID))
+            {
+
+            }
+            else
+            {
+                Inputs.Add(ID, Data);
+            }           
+        }
+
+        public void RemoveInput(string ID)
+        {
+            if (Inputs.ContainsKey(ID))
+            {
+                Inputs.Remove(ID);
+            }
+            else
+            {
+                log.Warn($"No input matching {ID} found!");
+            }
+        }
 
         private void SetupInputs()
         {
-            Inputs.Add(InputID.Up, new InputActionData(InputID.Up));
-            Inputs.Add(InputID.Left, new InputActionData(InputID.Left));
-            Inputs.Add(InputID.Right, new InputActionData(InputID.Right));
-            Inputs.Add(InputID.Down, new InputActionData(InputID.Down));
-            Inputs.Add(InputID.Scroll, new InputRangeData(InputID.Scroll));
-            Inputs.Add(InputID.Shift, new InputActionData(InputID.Shift));
-            Inputs.Add(InputID.Lock, new InputActionData(InputID.Lock));
-            Inputs.Add(InputID.LeftMouseButton, new MouseButtonActionState(InputID.LeftMouseButton));
-            Inputs.Add(InputID.RightMouseButton, new MouseButtonActionState(InputID.RightMouseButton));
-            Inputs.Add(InputID.MiddleMouseButton, new MouseButtonActionState(InputID.MiddleMouseButton));
-            Inputs.Add(InputID.LeftRotate, new InputActionData(InputID.LeftRotate));
-            Inputs.Add(InputID.RightRotate, new InputActionData(InputID.RightRotate));
-            Inputs.Add(InputID.ToggleDebug, new InputActionData(InputID.ToggleDebug));
+            Inputs.Add("InputID.Up", new InputActionData("InputID.Up"));
+            Inputs.Add("InputID.Left", new InputActionData("InputID.Left"));
+            Inputs.Add("InputID.Right", new InputActionData("InputID.Right"));
+            Inputs.Add("InputID.Down", new InputActionData("InputID.Down"));
+            Inputs.Add("InputID.Scroll", new InputRangeData("InputID.Scroll"));
+            Inputs.Add("InputID.Shift", new InputActionData("InputID.Shift"));
+            Inputs.Add("InputID.Lock", new InputActionData("InputID.Lock"));
+            Inputs.Add("InputID.LeftMouseButton", new MouseButtonActionState("InputID.LeftMouseButton"));
+            Inputs.Add("InputID.RightMouseButton", new MouseButtonActionState("InputID.RightMouseButton"));
+            Inputs.Add("InputID.MiddleMouseButton", new MouseButtonActionState("InputID.MiddleMouseButton"));
+            Inputs.Add("InputID.LeftRotate", new InputActionData("InputID.LeftRotate"));
+            Inputs.Add("InputID.RightRotate", new InputActionData("InputID.RightRotate"));
         }
 
-        public static bool Active(InputID ID) => Get.Instance_Active(ID);
+        public static bool Active(string ID) => Get.Instance_Active(ID);
 
-        public bool Instance_Active(InputID ID)
+        public bool Instance_Active(string ID)
         {
             var data = Instance_Data(ID);
             if (data != null)
@@ -477,9 +497,16 @@ namespace Nebula.Main
             return false;
         }
 
-        public static IInputData Data(InputID ID) => Get.Instance_Data(ID);
+        public static T GetData<T>(string ID) where T : class, IInputData
+        {
+            var data = Get.Instance_Data(ID);
+            if (data is T ret) return ret;
+            return null;
+        }
 
-        public IInputData Instance_Data(InputID ID)
+        public static IInputData Data(string ID) => Get.Instance_Data(ID);
+
+        public IInputData Instance_Data(string ID)
         {
             if (Inputs.TryGetValue(ID, out IInputData data))
             {
@@ -488,9 +515,9 @@ namespace Nebula.Main
             return null;
         }
 
-        public static bool OnPress(InputID ID) => Get.Instance_OnPress(ID);
+        public static bool OnPress(string ID) => Get.Instance_OnPress(ID);
 
-        private bool Instance_OnPress(InputID ID)
+        private bool Instance_OnPress(string ID)
         {
             if (Inputs.TryGetValue(ID, out IInputData input))
             {

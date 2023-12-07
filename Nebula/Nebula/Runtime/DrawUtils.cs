@@ -24,12 +24,14 @@ namespace Nebula.Runtime
 
         public static void Setup(SpriteBatch batch)
         {
-            Texture2D _texture = new Texture2D(batch.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
-            _texture.SetData(new[] { Color.White });
-            lineTex = _texture;
+            Texture2D _lineTexture = new Texture2D(batch.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
+            _lineTexture.SetData(new[] { Color.White });
+            lineTex = _lineTexture;
             circleTexture = Resources.Load<Texture2D>("Sprites/hollowCircle");
             filledCircleTexture = Resources.Load<Texture2D>("Sprites/filledCircle");
             defaultFont = Resources.Load<SpriteFont>("FONT/Constantina");
+
+
         }
 
         public static void DrawCircleToWorld(Circle circle, Color color, float thickness = 1f, float layerDepth = 0)
@@ -46,6 +48,11 @@ namespace Nebula.Runtime
             Vector2 scale = new Vector2(_scaleVal, _scaleVal);
             Vector2 pos = new Vector2(circle.Centre.X - _scaleVal * filledCircleTexture.Width / 2, circle.Centre.Y - _scaleVal * filledCircleTexture.Width / 2);
             spriteBatch.Draw(circleTexture, pos, null, color, 0, Vector2.Zero, scale, SpriteEffects.None, layerDepth);
+        }
+
+        public static void DrawRectangleToWorld(Vector2 Position, int width, int height, Color color, float thickness = 1f, float layerDepth = 0)
+        {
+            spriteBatch.Draw(lineTex, Position, null, color, 0f, Vector2.Zero, new Vector2(width,height), SpriteEffects.None, layerDepth);
         }
 
         public static void DrawPolygonOutlineToWorld(Polygon polygon, Color color, float thickness = 1f, float layerdepth = 0)

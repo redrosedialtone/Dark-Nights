@@ -1,3 +1,4 @@
+using Microsoft.Xna.Framework;
 using Nebula;
 using System;
 using System.Collections.Generic;
@@ -58,11 +59,12 @@ namespace DarkNights
 
         public Chunk ChunkUnsf(Coordinates Coordinates)
         {
+            
             if (allChunks.TryGetValue(Chunk.GetHashCode(Coordinates), out Chunk val))
             {
                 return val;
             }
-            log.Warn($"Could not find Chunk at::{Coordinates}");
+            //log.Warn($"Could not find Chunk at::{Coordinates}");
             return null;
         }
 

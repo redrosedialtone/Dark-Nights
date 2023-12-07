@@ -53,7 +53,7 @@ namespace DarkNights
             characterGizmo = new CharacterGizmo();
             characterGizmo.Enabled = true;
             characterGizmo.DrawCharacters = true;
-            characterGizmo.DrawCharacterPaths = true;
+            //characterGizmo.DrawCharacterPaths = true;
 
             entityGizmo = new EntityGizmo();
             entityGizmo.Enabled = true;
@@ -88,7 +88,7 @@ namespace DarkNights
 
         public void OnClick(MouseButtonActionState Data)
         {
-            if (Data.ID == InputID.LeftMouseButton)
+            if (Data.ID == "InputID.LeftMouseButton")
             {
                 if (PlayerCharacter != null)
                 {
@@ -97,7 +97,7 @@ namespace DarkNights
                     log.Info($"Moving Player Character::{PlayerCharacter.Position}");
                 }
             }
-            else if (Data.ID == InputID.RightMouseButton)
+            else if (Data.ID == "InputID.RightMouseButton")
             {
                 AddWall(Camera.ScreenToWorld(new Vector2(Data.mousePosition.X, Data.mousePosition.Y)));
             }
@@ -142,7 +142,9 @@ namespace DarkNights
         {
             if (_drawCharacters)
             {
-                DrawUtils.DrawPolygonOutlineToWorld(characterPolygon, characterOutlineColor, 5f);
+                //DrawUtils.DrawPolygonOutlineToWorld(characterPolygon, characterOutlineColor, 5f);
+                Vector2 offset = new Vector2(32, 32);
+                DrawUtils.DrawRectangleToWorld(characterPolygon.Position - offset, 64, 64, characterOutlineColor);
             }
             if (_drawCharacterPaths)
             {
@@ -175,11 +177,14 @@ namespace DarkNights
         private void UpdateGizmoPos(object sender, EntityMovementArgs e)
         {
             if (characterPolygon != null) characterPolygon.Position = e.newPosition;
-            if (sender is EntityMovement character)
+            if (_drawCharacterPaths)
             {
-                pathLine.From = e.newPosition;
-                pathLine.To = character.MovementTarget;
-            }
+                if (sender is EntityMovement character)
+                {
+                    pathLine.From = e.newPosition;
+                    pathLine.To = character.MovementTarget;
+                }
+            }  
         }
 
         private void SetDrawPaths()

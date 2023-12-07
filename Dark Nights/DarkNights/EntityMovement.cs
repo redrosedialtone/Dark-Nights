@@ -26,8 +26,8 @@ namespace DarkNights
         public Coordinates Coordinates { get; protected set; }
 
         public Vector2 MovementTarget { get; protected set; }
-        protected Stack<INavNode> currentPath;
-        protected INavNode nextNode;
+        public NavPath MovementPath;
+        public Vector2? nextNode;
         public bool IsMoving { get; protected set; }
         public bool MovementCompleted { get; protected set; }
 
@@ -49,7 +49,7 @@ namespace DarkNights
             MovementCompleted = false;
             IsMoving = true;
 
-            currentPath = NavigationSystem.Path(Position, Target);
+            MovementPath = NavigationSystem.Path(Position, Target);
         }
 
         public void Move(float delta)
@@ -69,7 +69,7 @@ namespace DarkNights
                     else nextPosition += Vector2.Normalize(deltaMovement) * travel;
                 }
                 SetPosition(nextPosition);
-                if (Position == MovementTarget) MovementTargetReached();
+                if (Coordinates == MovementTarget) MovementTargetReached();
             }
         }
 
@@ -77,15 +77,15 @@ namespace DarkNights
         {
             get
             {
-                if (nextNode != null) return nextNode.Position;
-                if (currentPath != null)
+                if (nextNode != null) return nextNode;
+                if (MovementPath != null)
                 {
-                    if (currentPath.Count == 0)
+                    if (MovementPath.Count == 0)
                     {
-                        return null;
+                        return MovementTarget;
                     }
-                    nextNode = currentPath.Pop();
-                    return nextNode.Position;
+                    nextNode = MovementPath.Next();
+                    return nextNode;
                 }
                 return null;
             }
@@ -96,7 +96,7 @@ namespace DarkNights
             IsMoving = false;
             Position = MovementTarget;
             MovementCompleted = true;
-            currentPath = null;
+            MovementPath = null;
         }
 
 

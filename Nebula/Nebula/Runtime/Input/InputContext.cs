@@ -41,43 +41,43 @@ namespace Nebula.Main
 			float movementX = 0.0F;
 			float movementY = 0.0F;
 			float rotateVal = 0.0F;
-			if (Input.Active(InputID.Right))
+			if (Input.Active("InputID.Right"))
 			{
 				movementX += 1.0f;
 				_active = true;
 			}
 
-			if (Input.Active(InputID.Left))
+			if (Input.Active("InputID.Left"))
 			{
 				movementX -= 1.0f;
                 _active = true;
             }
 
-			if (Input.Active(InputID.Up))
+			if (Input.Active("InputID.Up"))
 			{
 				movementY -= 1.0f;
                 _active = true;
             }
 
-			if (Input.Active(InputID.Down))
+			if (Input.Active("InputID.Down"))
 			{
 				movementY += 1.0f;
                 _active = true;
             }
 
-			if (Input.Active(InputID.LeftRotate))
+			if (Input.Active("InputID.LeftRotate"))
 			{
 				rotateVal -= 1.0f;
 				_active = true;
 			}
 
-			if (Input.Active(InputID.RightRotate))
+			if (Input.Active("InputID.RightRotate"))
 			{
 				rotateVal += 1.0f;
 				_active = true;
 			}
 
-			var _lockData = Input.Data(InputID.Lock);
+			var _lockData = Input.Data("InputID.Lock");
 			if (_lockData != null && _lockData is InputActionData _data)
 			{
 				if (_data.PressedThisFrame) Lock = !Lock;
@@ -86,7 +86,7 @@ namespace Nebula.Main
 			if (_active) _movementUpdate = true;
 			if (_movementUpdate)
 			{
-				bool _shift = Input.Active(InputID.Shift);
+				bool _shift = Input.Active("InputID.Shift");
                 Vector2 cameraMovement = new Vector2(movementX, movementY);
 				if(cameraMovement != Vector2.Zero) cameraMovement.Normalize();
 				cameraMovement = cameraMovement * SENSITIVITY * (_shift ? 2.5f : 1);
@@ -108,9 +108,9 @@ namespace Nebula.Main
 			}
 
 			float scrollY = 0.0f;
-			if(Input.Active(InputID.Scroll))
+			if(Input.Active("InputID.Scroll"))
 			{
-				InputRangeData data = (InputRangeData)Input.Data(InputID.Scroll);
+				InputRangeData data = (InputRangeData)Input.Data("InputID.Scroll");
 				scrollY += data.Current.State;
 			}
 
@@ -120,10 +120,10 @@ namespace Nebula.Main
 				OnScroll?.Invoke(scrollY);
 			}
 
-			if (Input.Active(InputID.LeftMouseButton) || Input.Active(InputID.RightMouseButton))
+			if (Input.Active("InputID.LeftMouseButton") || Input.Active("InputID.RightMouseButton"))
 			{
-				MouseButtonActionState _leftMouseData = Input.Active(InputID.LeftMouseButton) ? (MouseButtonActionState)Input.Data(InputID.LeftMouseButton) : null;
-                MouseButtonActionState _rightMouseData = Input.Active(InputID.RightMouseButton) ? (MouseButtonActionState)Input.Data(InputID.RightMouseButton) : null;
+				MouseButtonActionState _leftMouseData = Input.Active("InputID.LeftMouseButton") ? (MouseButtonActionState)Input.Data("InputID.LeftMouseButton") : null;
+                MouseButtonActionState _rightMouseData = Input.Active("InputID.RightMouseButton") ? (MouseButtonActionState)Input.Data("InputID.RightMouseButton") : null;
                 
                 _mouseDown = true;
 				if (_leftMouseData != null) OnClick?.Invoke(_leftMouseData);
@@ -133,7 +133,7 @@ namespace Nebula.Main
 			else if (_mouseDown)
 			{
 				_mouseDown = false;
-                var _mouseData = (MouseButtonActionState)Input.Data(InputID.LeftMouseButton);
+                var _mouseData = (MouseButtonActionState)Input.Data("InputID.LeftMouseButton");
                 OnRelease?.Invoke(_mouseData);
 			}
 			

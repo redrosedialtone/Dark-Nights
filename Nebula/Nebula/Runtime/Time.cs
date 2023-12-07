@@ -37,6 +37,8 @@ namespace Nebula.Main
         }
 
         public static void Frame() { TotalFrames++; }
+        public static void SetTickEnabled() { SetTickEnabled(!TickEnabled); }
+        public static void SetTickEnabled(bool setTo) { TickEnabled = setTo; }
     }
 
     public class FramerateGizmo : IGizmo

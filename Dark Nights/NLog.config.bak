@@ -10,7 +10,7 @@
 	<variable name="RESOURCES" value="Info" />
 	<variable name="LOADING" value="Info" />
 	<variable name="NAV" value="Trace" />
-	<variable name="WORLD" value="Info" />
+	<variable name="WORLD" value="Trace" />
 	<variable name="ENTITY" value="Info" />
 	<variable name="CURSOR" value="Info" />
 	<variable name="PHYSICS" value="Trace" />

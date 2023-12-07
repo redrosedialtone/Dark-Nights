@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Nebula;
+using Nebula.Main;
 using Nebula.Runtime;
 using Nebula.Systems;
 using static Nebula.Runtime.DrawUtils;
@@ -44,6 +45,43 @@ namespace DarkNights
             gizmo.Enabled = true;
             gizmo.DrawChunks = true;
             gizmo.DrawTiles = true;
+            gizmo.DrawChunksUnderMouse = true;
+        }
+
+        public IEnumerable<Coordinates> TilesInRadius(Vector2 position, float radius)
+        {
+            Coordinates min = new Coordinates((int)MathF.Floor(position.X - radius), (int)MathF.Floor(position.Y - radius));
+            Coordinates max = new Coordinates((int)MathF.Floor(position.X + radius), (int)MathF.Floor(position.Y + radius));
+
+            for (int x = min.X; x < max.X; x++)
+            {
+                for (int y = min.Y; y < max.Y; y++)
+                {
+                    yield return new Coordinates(x, y);
+                }
+            } 
+        }
+
+        public IEnumerable<Chunk> ChunksInRadius(Vector2 position, float tiles)
+        {
+            //tiles *= Defs.UnitPixelSize;
+            Vector2 min = new Vector2(position.X - tiles, position.Y - tiles);
+            Vector2 max = new Vector2(position.X + tiles, position.Y + tiles);
+            Coordinates tileMin = new Coordinates(min);
+            Coordinates tileMax = new Coordinates(max);
+
+            Chunk chunkMin = Chunk.Get(tileMin);
+            Chunk chunkMax = Chunk.Get(tileMax);
+
+            if (chunkMin == null || chunkMax == null) yield break;
+
+            for (int x = chunkMin.ChunkCoordinates.X; x <= chunkMax.ChunkCoordinates.X; x++)
+            {
+                for (int y = chunkMin.ChunkCoordinates.Y; y <= chunkMax.ChunkCoordinates.Y; y++)
+                {
+                    yield return World.ChunkUnsf(new Coordinates(x, y));
+                }
+            }
         }
     }
 
@@ -52,6 +90,9 @@ namespace DarkNights
         public bool Enabled { get; set; }
         public bool DrawChunks { get { return _drawChunks; } set { _drawChunks = value; SetDrawChunks(); } }
         private bool _drawChunks = false;
+        public bool DrawChunksUnderMouse { get { return _drawChunksUnderMouse; } set { _drawChunksUnderMouse = value; } }
+        private bool _drawChunksUnderMouse = false;
+        private float drawChunksUnderMouseRadius = 1.0f;
         public bool DrawTiles { get { return _drawTiles; } set { _drawTiles = value; SetDrawTiles(); } }
         private bool _drawTiles = false;
 
@@ -59,6 +100,7 @@ namespace DarkNights
         private Polygon[] chunkPolys;
         private Color tileGraphColor => new Color(75,75,75,75);
         private Polygon[] tilePolys;
+        private Color chunkHighlightColor => new Color(225,75,225,225);
 
         public WorldGizmo()
         {
@@ -82,6 +124,37 @@ namespace DarkNights
                 {
                     DrawUtils.DrawPolygonOutlineToWorld(tile, tileGraphColor, 1.0f);
                 }
+            }
+            if (_drawChunksUnderMouse)
+            {
+                Vector2 pos = Camera.ScreenToWorld(Cursor.Position);
+                Chunk chunk = Chunk.Get(pos);
+                if (chunk == null) return;
+                Vector2[] corners = new Vector2[4];
+
+                corners[0] = new Coordinates(0, 0);
+                corners[1] = new Coordinates(Chunk.Size.X, 0);
+                corners[2] = new Coordinates(Chunk.Size.X, Chunk.Size.Y);
+                corners[3] = new Coordinates(0, Chunk.Size.Y);
+
+                var polygon = new Polygon(corners, chunk.Origin);
+
+                DrawUtils.DrawPolygonOutlineToWorld(polygon, chunkHighlightColor, 5.0f);
+                
+                /*foreach (var chunk in WorldSystem.Get.ChunksInRadius(pos, drawChunksUnderMouseRadius))
+                {
+                    if (chunk == null) continue;
+                    Vector2[] corners = new Vector2[4];
+
+                    corners[0] = new Coordinates(0, 0);
+                    corners[1] = new Coordinates(Chunk.Size.X, 0);
+                    corners[2] = new Coordinates(Chunk.Size.X, Chunk.Size.Y);
+                    corners[3] = new Coordinates(0, Chunk.Size.Y);
+
+                    var polygon = new Polygon(corners, chunk.Origin);
+
+                    DrawUtils.DrawPolygonOutlineToWorld(polygon, chunkHighlightColor,5.0f);
+                }*/
             }
         }
 
