@@ -86,6 +86,7 @@ namespace DarkNights
             
         }
 
+        private Coordinates _lastWallPos;
         public void OnClick(MouseButtonActionState Data)
         {
             if (Data.ID == "InputID.LeftMouseButton")
@@ -99,7 +100,13 @@ namespace DarkNights
             }
             else if (Data.ID == "InputID.RightMouseButton")
             {
-                AddWall(Camera.ScreenToWorld(new Vector2(Data.mousePosition.X, Data.mousePosition.Y)));
+                Coordinates mousePos = Camera.ScreenToWorld(new Vector2(Data.mousePosition.X, Data.mousePosition.Y));
+                if (mousePos != _lastWallPos)
+                {
+                    AddWall(mousePos);
+                    _lastWallPos = mousePos;
+                }
+
             }
             
         }

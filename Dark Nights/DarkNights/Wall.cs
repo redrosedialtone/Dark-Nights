@@ -9,7 +9,7 @@ namespace DarkNights
 {
     public class Wall : INavNode
     {
-        public NavNodeType Type => NavNodeType.Impassable;
+        public PassabilityFlags Passability => PassabilityFlags.Impassable;
         public Vector2 Position => Coordinates;
         public Coordinates Coordinates { get; set; }
         public float Cost => 1.0f;

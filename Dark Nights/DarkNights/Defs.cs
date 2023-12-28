@@ -9,6 +9,6 @@ namespace DarkNights
     public static class Defs
     {
         public const int UnitPixelSize = 32;
-        public const int ChunkSize = 25;
+        public const int ChunkSize = 24;
     }
 }

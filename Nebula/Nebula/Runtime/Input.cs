@@ -20,7 +20,7 @@ namespace Nebula.Main
         public Point mousePosition;
 
         public string ID { get; set; }
-        public bool Active => PressedThisFrame();
+        public bool Active => buttonState == ButtonState.Pressed || buttonState != previousState;
 
         public MouseButtonActionState(string ID)
         {

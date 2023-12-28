@@ -18,10 +18,12 @@ namespace DarkNights
         #endregion
 
         public static int SEED;
-        public static int CHUNK_SIZE = 25;
-        public (int X, int Y) Size => ((Maximum.X - Minimum.X), (Maximum.Y - Minimum.Y));
         public (int X, int Y) Minimum;
         public (int X, int Y) Maximum;
+        public static int CHUNK_SIZE => Defs.ChunkSize;
+        public (int X, int Y) Size => ((Maximum.X - Minimum.X), (Maximum.Y - Minimum.Y));
+        public Coordinates MinimumTile => new Coordinates(Minimum.X * CHUNK_SIZE, Minimum.Y * CHUNK_SIZE);
+        public Coordinates MaximumTile => new Coordinates(Maximum.X * CHUNK_SIZE, Maximum.Y * CHUNK_SIZE);
 
         private readonly Dictionary<int, Chunk> allChunks;
 

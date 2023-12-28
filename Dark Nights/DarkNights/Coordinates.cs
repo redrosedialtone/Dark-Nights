@@ -1,4 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
+using NLog.LayoutRenderers.Wrappers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -52,6 +53,9 @@ namespace DarkNights
         public static Coordinates operator +(Coordinates a, Coordinates b) =>
             new Coordinates(a.X + b.X, a.Y + b.Y);
 
+        public static Coordinates operator -(Coordinates a, Coordinates b) =>
+            new Coordinates(a.X - b.X, a.Y - b.Y);
+
         public static bool operator ==(Coordinates a, Coordinates b) =>
             a.Equals(b);
 
@@ -63,6 +67,36 @@ namespace DarkNights
 
         public static bool operator !=(Coordinates a, Vector2 b) =>
             a.X != b.X || a.Y != b.X;
+
+        public static Coordinates West => new Coordinates(-1, 0);
+        public static Coordinates East => new Coordinates(1, 0);
+        public static Coordinates North => new Coordinates(0, -1);
+        public static Coordinates South => new Coordinates(0, 1);
+
+        public IEnumerable<Coordinates> Adjacent
+        {
+            get
+            {
+                // N
+                yield return new Coordinates(X, Y - 1);
+                // E
+                yield return new Coordinates(X + 1, Y);
+                // S
+                yield return new Coordinates(X, Y + 1);
+                // W
+                yield return new Coordinates(X - 1, Y);
+            }
+        }
+
+        public bool AdjacentTo(Coordinates Coordinate)
+        {
+            if (Coordinate == this) return true;
+            foreach (var neighbour in Adjacent)
+            {
+                if (Coordinate == neighbour) return true;
+            }
+            return false;
+        }
     }
 
     /*public struct PixelCoordinate

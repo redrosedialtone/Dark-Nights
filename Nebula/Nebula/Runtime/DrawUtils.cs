@@ -5,6 +5,7 @@ using Nebula.Main;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Emit;
 using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
@@ -36,9 +37,14 @@ namespace Nebula.Runtime
 
         public static void DrawCircleToWorld(Circle circle, Color color, float thickness = 1f, float layerDepth = 0)
         {
-            float _scaleVal = circle.Radius / filledCircleTexture.Width;
+            DrawCircleToWorld(circle.Centre, circle.Radius, color, thickness, layerDepth);
+        }
+
+        public static void DrawCircleToWorld(Vector2 Centre, float Radius, Color color, float thickness = 1f, float layerDepth = 0)
+        {
+            float _scaleVal = Radius / filledCircleTexture.Width;
             Vector2 scale = new Vector2(_scaleVal, _scaleVal);
-            Vector2 pos = new Vector2(circle.Centre.X - _scaleVal * filledCircleTexture.Width / 2, circle.Centre.Y - _scaleVal * filledCircleTexture.Width / 2);
+            Vector2 pos = new Vector2(Centre.X - _scaleVal * filledCircleTexture.Width / 2, Centre.Y - _scaleVal * filledCircleTexture.Width / 2);
             spriteBatch.Draw(filledCircleTexture, pos, null, color, 0, Vector2.Zero, scale, SpriteEffects.None, layerDepth);
         }
 
@@ -73,6 +79,14 @@ namespace Nebula.Runtime
 
                 spriteBatch.Draw(lineTex, v + Position, null, color, a, origin, new Vector2(scale.X, scale.Y / Camera.Get.Zoom), SpriteEffects.None, layerDepth);
             }
+        }
+
+        public static void DrawPolygonOutlineToWorld(Rectangle rect, Color color, float thickness = 1, float layerDepth = 0)
+        {
+            spriteBatch.Draw(lineTex, new Vector2(rect.X, rect.Y), null, color, 0f, Vector2.Zero, new Vector2(rect.Width, thickness / Camera.Get.Zoom), SpriteEffects.None, layerDepth);
+            spriteBatch.Draw(lineTex, new Vector2(rect.Right - thickness / Camera.Get.Zoom, rect.Y), null, color, 0f, Vector2.Zero, new Vector2(thickness / Camera.Get.Zoom, rect.Height), SpriteEffects.None, layerDepth);
+            spriteBatch.Draw(lineTex, new Vector2(rect.X, rect.Y), null, color, 0f, Vector2.Zero, new Vector2(thickness / Camera.Get.Zoom, rect.Height), SpriteEffects.None, layerDepth);
+            spriteBatch.Draw(lineTex, new Vector2(rect.X, rect.Bottom - thickness / Camera.Get.Zoom), null, color, 0f, Vector2.Zero, new Vector2(rect.Width, thickness / Camera.Get.Zoom), SpriteEffects.None, layerDepth);
         }
 
         public static void DrawPolygonOutlineToScreen(Polygon polygon, Color color, float thickness = 1f, float layerdepth = 0)
@@ -123,6 +137,5 @@ namespace Nebula.Runtime
         {
             batch.DrawString(spriteFont, text, position, color, rotation, origin, scale, effects, layer);
         }
-
     }
 }

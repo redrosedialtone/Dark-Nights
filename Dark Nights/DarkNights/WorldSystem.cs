@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Nebula;
@@ -32,7 +33,7 @@ namespace DarkNights
         {
             log.Info("> ...");
             instance = this;
-            World = new World(0, 5, 5);
+            World = new World(0, 14, 14);
             World.GenerateChunks();
 
             ApplicationController.Get.Initiate(this);
@@ -43,9 +44,16 @@ namespace DarkNights
             base.OnInitialized();
             gizmo = new WorldGizmo();
             gizmo.Enabled = true;
-            gizmo.DrawChunks = true;
+            //gizmo.DrawChunks = true;
             gizmo.DrawTiles = true;
             gizmo.DrawChunksUnderMouse = true;
+        }
+
+        public Coordinates ClampToWorld(Coordinates Coordinate)
+        {
+            int x = (int)MathF.Min(MathF.Max(Coordinate.X, World.MinimumTile.X), World.MaximumTile.X);
+            int y = (int)MathF.Min(MathF.Max(Coordinate.Y, World.MinimumTile.Y), World.MaximumTile.Y);
+            return new Coordinates(x, y);
         }
 
         public IEnumerable<Coordinates> TilesInRadius(Vector2 position, float radius)
@@ -93,13 +101,12 @@ namespace DarkNights
         public bool DrawChunksUnderMouse { get { return _drawChunksUnderMouse; } set { _drawChunksUnderMouse = value; } }
         private bool _drawChunksUnderMouse = false;
         private float drawChunksUnderMouseRadius = 1.0f;
-        public bool DrawTiles { get { return _drawTiles; } set { _drawTiles = value; SetDrawTiles(); } }
+        public bool DrawTiles { get { return _drawTiles; } set { _drawTiles = value; } }
         private bool _drawTiles = false;
 
         private Color chunkGraphColor => new Color(75, 75, 225, 75);
         private Polygon[] chunkPolys;
         private Color tileGraphColor => new Color(75,75,75,75);
-        private Polygon[] tilePolys;
         private Color chunkHighlightColor => new Color(225,75,225,225);
 
         public WorldGizmo()
@@ -120,9 +127,26 @@ namespace DarkNights
             }
             if (_drawTiles)
             {
-                foreach (var tile in tilePolys)
+                Rectangle viewport = Camera.Get.ViewportWorldBoundry();
+
+                Coordinates min = WorldSystem.Get.ClampToWorld(new Vector2(viewport.X, viewport.Y));
+                Coordinates max = WorldSystem.Get.ClampToWorld(new Vector2(viewport.X + viewport.Width, viewport.Y + viewport.Height));
+                Vector2 delta = new Coordinates(max.X - min.X, max.Y - min.Y);
+
+                for (int x = min.X; x < max.X; x++)
                 {
-                    DrawUtils.DrawPolygonOutlineToWorld(tile, tileGraphColor, 1.0f);
+                    Vector2 pos = new Coordinates(x, min.Y);
+                    Rectangle xRect = new Rectangle((int)pos.X,(int)pos.Y, 1, (int)delta.Y);
+                    DrawUtils.DrawPolygonOutlineToWorld(xRect, tileGraphColor);
+                }
+                for (int y = min.Y; y < max.Y; y++)
+                {
+                    Vector2 pos = new Coordinates(min.X, y);
+                    Rectangle yRect = new Rectangle((int)pos.X, (int)pos.Y, (int)delta.X, 1);
+                    DrawUtils.DrawPolygonOutlineToWorld(yRect, tileGraphColor); 
+                    /*Vector2 tile = new Coordinates(x, y);
+                    Rectangle rect = new Rectangle((int)tile.X, (int)tile.Y, Defs.UnitPixelSize, Defs.UnitPixelSize);
+                    DrawUtils.DrawPolygonOutlineToWorld(rect, tileGraphColor);*/
                 }
             }
             if (_drawChunksUnderMouse)
@@ -180,31 +204,6 @@ namespace DarkNights
             else
             {
                 chunkPolys = null;
-            }
-        }
-
-        private void SetDrawTiles()
-        {
-            if (_drawTiles)
-            {
-                List<Polygon> polys = new List<Polygon>();
-                foreach (var tile in WorldSystem.Get.World.Tiles())
-                {
-                    Vector2[] corners = new Vector2[4];
-
-                    corners[0] = new Coordinates(0, 0);
-                    corners[1] = new Coordinates(1, 0);
-                    corners[2] = new Coordinates(1, 1);
-                    corners[3] = new Coordinates(0, 1);
-
-                    var polygon = new Polygon(corners, tile);
-                    polys.Add(polygon);
-                }
-                tilePolys = polys.ToArray();
-            }
-            else
-            {
-                tilePolys = null;
             }
         }
     }
