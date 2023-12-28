@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Metadata;
@@ -158,6 +158,10 @@ namespace Nebula.Main
             var drawCount = Graphics.Get.GraphicsDevice.Metrics.DrawCount;
             var fps = string.Format("Draws: {0:0.##}", drawCount);
             DrawUtils.DrawText(fps, new Vector2(1, 15), Color.Yellow);
+        }
+        public void UnloadContent()
+        {
+            return;
         }
     }
 }

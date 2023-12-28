@@ -1,4 +1,4 @@
-﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Media;
 using Nebula.Main;
@@ -136,6 +136,14 @@ namespace Nebula.Runtime
         private static void DrawText(SpriteBatch batch, SpriteFont spriteFont, string text, Vector2 position, Color color, float rotation, Vector2 origin, float scale, SpriteEffects effects, float layer)
         {
             batch.DrawString(spriteFont, text, position, color, rotation, origin, scale, effects, layer);
+        }
+        public static Texture2D CreateSquareTexture(GraphicsDevice device, Color[] colours)
+        {
+            //initialize a texture
+            Texture2D texture = new Texture2D(device, colours.Length, colours.Length);
+            //set the color
+            texture.SetData(colours);
+            return texture;
         }
     }
 }

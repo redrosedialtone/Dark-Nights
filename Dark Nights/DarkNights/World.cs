@@ -1,8 +1,11 @@
+using DarkNights.WorldGeneration;
 using Microsoft.Xna.Framework;
 using Nebula;
+using Nebula.Main;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -17,6 +20,15 @@ namespace DarkNights
 
         #endregion
 
+        #region Biome Data
+        public List<INavNode> NavNodes = new List<INavNode>();
+        public Action<Tree> OnTreeAdded;
+        public float[,] FertilityMap { get; private set; }
+
+        private List<IBiome> biomes = new List<IBiome>();
+        private BiomeGenerator biomeGenerator;
+        #endregion
+
         public static int SEED;
         public (int X, int Y) Minimum;
         public (int X, int Y) Maximum;
@@ -26,7 +38,6 @@ namespace DarkNights
         public Coordinates MaximumTile => new Coordinates(Maximum.X * CHUNK_SIZE, Maximum.Y * CHUNK_SIZE);
 
         private readonly Dictionary<int, Chunk> allChunks;
-
         public World(int seed, int width, int height)
         {
             SEED = seed;
@@ -36,6 +47,15 @@ namespace DarkNights
 
             Minimum = ((int)MathF.Floor(0 - _halfWidth), (int)MathF.Floor(0 - _halfHeight));
             Maximum = ((int)MathF.Ceiling(_halfWidth), (int)MathF.Ceiling(_halfHeight));
+
+            biomes.Add(new TemperateGrasslands());
+            biomes.Add(new TemperateWoods());
+            biomeGenerator = new BiomeGenerator(biomes.ToArray(), seed, CHUNK_SIZE);
+        }
+
+        public void GenerateBiomeData()
+        {
+            biomeGenerator.Generate(Chunks());
         }
 
         public void GenerateChunks()
@@ -58,7 +78,13 @@ namespace DarkNights
             Chunk newChunk = new Chunk((X,Y));
             allChunks.Add(newChunk.GetHashCode(),newChunk);
         }
-
+        public void AddTree(Coordinates Coordinates)
+        {
+            Tree tree = new Tree(Coordinates);
+            NavNodes.Add(tree);
+            OnTreeAdded?.Invoke(tree);
+            NavigationSystem.Get.AddNavNode(tree);
+        }
         public Chunk ChunkUnsf(Coordinates Coordinates)
         {
             
@@ -69,6 +95,16 @@ namespace DarkNights
             //log.Warn($"Could not find Chunk at::{Coordinates}");
             return null;
         }
+        public Chunk ChunkUnsf(int HashCode)
+        {
+            if (allChunks.TryGetValue(HashCode, out Chunk val))
+            {
+                return val;
+            }
+            //log.Warn($"Could not find Chunk at::{Coordinates}");
+            return null;
+        }
+
 
         public IEnumerable<Chunk> Chunks()
         {
