@@ -49,7 +49,9 @@ namespace DarkNights
             MovementCompleted = false;
             IsMoving = true;
 
-            MovementPath = NavigationSystem.Path(Position, Target);
+            if (MovementPath != null) MovementPath.Done();
+
+            MovementPath = NavSys.Path(Position, Target);
         }
 
         public void Move(float delta)

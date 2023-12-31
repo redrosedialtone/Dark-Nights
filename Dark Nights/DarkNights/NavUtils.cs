@@ -22,46 +22,125 @@ namespace DarkNights
     public interface INavNode
     {
         PassabilityFlags Passability { get; }
-        Vector2 Position { get; }
-        Coordinates Coordinates => Position;
-        float Cost { get; }
+        Coordinates Coordinates { get; }
+        IEnumerable<INavNode> Neighbours { get; }
     }
 
-
-
-
-
-    public class GraphEdge
+    public struct PathNode : INavNode
     {
-        public IGraph[] Graphs;
-        public Coordinates[][] Tiles;
-        public (Coordinates From, Coordinates To) InterEdge;
-        public int Clearance;
+        public PassabilityFlags Passability => PassabilityFlags.Pathing;
+        public Coordinates Coordinates { get; private set; }
+        public IEnumerable<INavNode> Neighbours { get; private set; }
 
-        public IGraph Source => Graphs[0];
-        public IGraph Cast => Graphs[1];
-
-        public Coordinates[] Exits(IGraph exit)
+        public PathNode(Coordinates Coordinates, IEnumerable<INavNode> Neighbours)
         {
-            int index = -1;
-            for (int i = 0; i < Graphs.Length; i++)
-            {
-                if (Graphs[i] == exit){ index = i; break; }
-            }
-            if (index == -1) return null;
-            return Tiles[index];
+            this.Coordinates = Coordinates; this.Neighbours = Neighbours;
+            NavSys.Get.AddTemporaryNode(this);
+        }
+
+        public void Clear()
+        {
+            NavSys.Get.ClearTemporaryNode(this);
         }
     }
 
-    public class NavNode : INavNode
+    public struct ImpassableNode : INavNode
     {
-        public PassabilityFlags Passability { get; set; }
-        public Vector2 Position { get; set; }
-        public float Cost => 1.0f;
+        public PassabilityFlags Passability => PassabilityFlags.Impassable;
+        public Coordinates Coordinates { get; private set; }
+        public IEnumerable<INavNode> Neighbours => null;
 
-        public NavNode(Vector2 Position, PassabilityFlags Type)
+        public ImpassableNode(Coordinates Coordinates)
         {
-            this.Position = Position; this.Passability = Type;
+            this.Coordinates = Coordinates;
+            NavSys.Get.AddNavNode(this);
+        }
+    }
+
+    public struct GraphEdgeNode : INavNode
+    {
+        public PassabilityFlags Passability => PassabilityFlags.Pathing;
+        public Coordinates Coordinates { get; private set; }
+        public IEnumerable<INavNode> Neighbours => linkedEdges;
+        private INavNode[] linkedEdges;
+        public int Depth { get; private set; }
+
+        public GraphEdgeNode(Coordinates Coordinates, int Depth)
+        {
+            this.Coordinates = Coordinates; 
+            this.Depth = Depth;
+            linkedEdges = null;
+        }
+
+        public void SetNeighbours(GraphEdgeNode[] linkedEdges)
+        {
+            this.linkedEdges = new INavNode[linkedEdges.Length];
+            linkedEdges.CopyTo(this.linkedEdges, 0);
+        }
+    }
+
+    public struct InterEdge
+    {
+        public Coordinates[][] Tiles;
+        public Coordinates[] Linked;
+        public int Clearance;
+        public int Depth;
+
+        private int sourceHash;
+
+        public InterEdge(IGraph Source, Coordinates[][] Tiles, int Depth)
+        {
+            this.Tiles = Tiles; this.Depth = Depth;
+
+            int index = Tiles[0].Length / 2;
+            Linked = new Coordinates[] { Tiles[0][index], Tiles[1][index] };
+            Clearance = Tiles[0].Length;
+
+            sourceHash = Source.GetHashCode();
+        }
+
+        public IEnumerable<IGraph> Graphs()
+        {
+            yield return NavSys.Get.Graph(Linked[0], Depth);
+            yield return NavSys.Get.Graph(Linked[1], Depth);
+        }
+
+        public bool Connected(IGraph source, out IGraph cast, out Coordinates sourceTile, out Coordinates castTile)
+        {
+            sourceTile = default;
+            castTile = default;
+            cast = null;
+
+            bool connected = false;
+            foreach (var graph in Graphs())
+            {
+                if (graph == source) connected = true;
+                else cast = graph;
+            }
+            if (!connected) return false;
+
+            if (source.GetHashCode() == sourceHash) { sourceTile = Linked[0]; castTile = Linked[1]; }
+            else { sourceTile = Linked[1]; castTile = Linked[0]; }
+            return true;
+        }
+
+        public bool Connected(IGraph source, out IGraph cast, out IEnumerable<Coordinates> sourceEdge, out IEnumerable<Coordinates> castEdge)
+        {
+            sourceEdge = null;
+            castEdge = null;
+            cast = null;
+
+            bool connected = false;
+            foreach (var graph in Graphs())
+            {
+                if (graph == source) connected = true;
+                else cast = graph;
+            }
+            if (!connected) return false;
+
+            if (source.GetHashCode() == sourceHash) { sourceEdge = Tiles[0]; castEdge = Tiles[1]; }
+            else { sourceEdge = Tiles[1]; castEdge = Tiles[0]; }
+            return true;
         }
     }
 
@@ -71,11 +150,22 @@ namespace DarkNights
         public Stack<Coordinates> lastPath = new Stack<Coordinates>();
         public int Count => TilePath.Count;
 
+        public Action Completed;
+
         public Coordinates Next()
         {
             var ret = TilePath.Pop();
             lastPath.Push(ret);
+            if (TilePath.Count == 0)
+            {
+                Completed?.Invoke();
+            }
             return ret;
+        }
+
+        public void Done()
+        {
+            Completed?.Invoke();
         }
     }
 
@@ -86,11 +176,11 @@ namespace DarkNights
         public (Coordinates min, Coordinates max) Bounds;
         public IGraph[] Previous;
 
-        private NavigationSystem Nav => NavigationSystem.Get;
+        private NavSys Nav => NavSys.Get;
 
         public void Build(Cluster origin)
         {
-            int level = origin.Level;
+            int level = origin.Depth;
             List<Region> regions = new List<Region>();
             if (level == 0)
             {
@@ -168,7 +258,7 @@ namespace DarkNights
                         if (tile.X < Bounds.min.X || tile.Y < Bounds.min.Y ||
                             tile.X >= Bounds.max.X || tile.Y >= Bounds.max.Y)
                         {
-                            var sibling = NavigationSystem.Get.Graph(tile, 1);
+                            var sibling = NavSys.Get.Graph(tile, 1);
                             if (!(edges.Contains(sibling))) edges.Add(sibling);
                             continue;
                         }
@@ -268,18 +358,12 @@ namespace DarkNights
                     edgeBuilders.Add(exit.GetHashCode(), graphEdge);
                 }
             }
-            List<GraphEdge> finalEdges = new List<GraphEdge>();
 
             foreach (var builder in edgeBuilders)
             {
                 var graphEdges = builder.Value.Build();
-                foreach (var graphEdge in graphEdges)
-                {
-                    finalEdges.Add(graphEdge);
-                }
+                origin.UpdateEdge(builder.Value.Graphs[1], graphEdges);
             }
-
-            origin.MatchEdges(finalEdges);
         }
 
         private void GraphExits(IGraph source, IGraph[] edges)
@@ -300,8 +384,11 @@ namespace DarkNights
                         var graphEdge = edgeBuilders[exit.GetHashCode()];
                         foreach (var edge in subGraph.GetEdges(subExit))
                         {
-                            graphEdge.AddTiles(exit, edge.Exits(subExit));
-                            graphEdge.AddTiles(source, edge.Exits(subGraph));
+                            if (edge.Connected(subGraph, out IGraph cast, out IEnumerable<Coordinates> sourceEdge, out IEnumerable<Coordinates> castEdge))
+                            {
+                                graphEdge.AddTiles(source, sourceEdge);
+                                graphEdge.AddTiles(exit, castEdge);
+                            }
                         }
                     }
                     else
@@ -310,8 +397,11 @@ namespace DarkNights
 
                         foreach (var edge in subGraph.GetEdges(subExit))
                         {
-                            graphEdge.AddTiles(exit, edge.Exits(subExit));
-                            graphEdge.AddTiles(source, edge.Exits(subGraph));
+                            if (edge.Connected(subGraph, out IGraph cast, out IEnumerable<Coordinates> sourceEdge, out IEnumerable<Coordinates> castEdge))
+                            {
+                                graphEdge.AddTiles(source, sourceEdge);
+                                graphEdge.AddTiles(exit, castEdge);
+                            }
                         }
 
                         edgeBuilders.Add(exit.GetHashCode(), graphEdge);
@@ -320,18 +410,11 @@ namespace DarkNights
                 }
             }
 
-            List<GraphEdge> finalEdges = new List<GraphEdge>();
-
             foreach (var builder in edgeBuilders)
             {
                 var graphEdges = builder.Value.Build();
-                foreach (var graphEdge in graphEdges)
-                {
-                    finalEdges.Add(graphEdge);
-                }
+                source.UpdateEdge(builder.Value.Graphs[1], graphEdges);
             }
-
-            source.MatchEdges(finalEdges);
         }
     }
 
@@ -371,7 +454,7 @@ namespace DarkNights
             Tiles[1].AddRange(tiles[indexB]);
         }
 
-        public IEnumerable<GraphEdge> Build()
+        public IEnumerable<InterEdge> Build()
         {
             Coordinates[] exitsA = Tiles[0].OrderBy(a => a.X).ThenBy(a => a.Y).ToArray();
             Coordinates[] exitsB = Tiles[1].OrderBy(a => a.X).ThenBy(a => a.Y).ToArray();
@@ -386,7 +469,7 @@ namespace DarkNights
                 Coordinates a = exitsA[curIndex];
                 Coordinates b = exitsB[curIndex];
                 bool adjacent = a.AdjacentTo(previous.a) || b.AdjacentTo(previous.b);
-                bool blocked = NavigationSystem.Get.Impassable(a) || NavigationSystem.Get.Impassable(b);
+                bool blocked = NavSys.Get.Impassable(a) || NavSys.Get.Impassable(b);
                 if (blocked)
                 {
                     if (curIndex > prevIndex)
@@ -414,14 +497,7 @@ namespace DarkNights
 
             foreach (var edge in edges)
             {
-                GraphEdge graphEdge = new GraphEdge();
-                graphEdge.Tiles = edge;
-                graphEdge.Graphs = Graphs;
-
-                int index = edge[0].Length / 2;
-                graphEdge.InterEdge = (edge[0][index], edge[1][index]);
-                graphEdge.Clearance = edge[0].Length;
-
+                InterEdge graphEdge = new InterEdge(Graphs[0], edge, Graphs[0].Depth);
                 yield return graphEdge;
             }
         }

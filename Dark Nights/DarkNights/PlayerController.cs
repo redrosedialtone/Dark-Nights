@@ -87,15 +87,21 @@ namespace DarkNights
         }
 
         private Coordinates _lastWallPos;
+        private Coordinates _lastMovePos;
         public void OnClick(MouseButtonActionState Data)
         {
             if (Data.ID == "InputID.LeftMouseButton")
             {
                 if (PlayerCharacter != null)
                 {
-                    Vector2 pos = Camera.ScreenToWorld(new Vector2(Data.mousePosition.X, Data.mousePosition.Y));
-                    PlayerCharacter.Movement.MoveTo(pos);
-                    log.Info($"Moving Player Character::{PlayerCharacter.Position}");
+                    Coordinates mousePos = Camera.ScreenToWorld(new Vector2(Data.mousePosition.X, Data.mousePosition.Y));
+                    if (mousePos != _lastMovePos)
+                    {
+                        PlayerCharacter.Movement.MoveTo(mousePos);
+                        log.Info($"Moving Player Character::{PlayerCharacter.Position}");
+                        _lastMovePos = mousePos;
+                    }
+
                 }
             }
             else if (Data.ID == "InputID.RightMouseButton")
@@ -116,7 +122,6 @@ namespace DarkNights
             Wall wall = new Wall(Coordinates);
             Walls.Add(wall);
             OnWallBuilt?.Invoke(wall);
-            NavigationSystem.Get.AddNavNode(wall);
         }
     }
 
