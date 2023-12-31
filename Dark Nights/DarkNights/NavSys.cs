@@ -9,6 +9,7 @@ using NLog.Fluent;
 using Priority_Queue;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Reflection.Emit;
 using System.Security.Cryptography.X509Certificates;
@@ -20,11 +21,11 @@ using static Nebula.Runtime.DrawUtils;
 
 namespace DarkNights
 {
-    public class NavigationSystem : Manager
+    public class NavSys : Manager
     {
         #region Static
-        private static NavigationSystem instance;
-        public static NavigationSystem Get => instance;
+        private static NavSys instance;
+        public static NavSys Get => instance;
 
         public static readonly NLog.Logger log = NLog.LogManager.GetLogger("NAVIGATION");
         #endregion
@@ -36,6 +37,8 @@ namespace DarkNights
         public int ClusterFromStep(int size) => (int)(MathF.Log(size / ClusterSize) / MathF.Log(3));
 
         public Dictionary<int, Cluster>[] clusters = new Dictionary<int, Cluster>[2];
+
+        public List<PathNode> temporaryNodes = new List<PathNode>();
 
         public override void Init()
         {
@@ -84,9 +87,7 @@ namespace DarkNights
                 {
                     for (int y = min.Y; y < max.Y; y++)
                     {
-                        Cluster newCluster = new Cluster();
-                        newCluster.Origin = new Coordinates(x*step, y*step);
-                        newCluster.Size = step;
+                        Cluster newCluster = new Cluster(new Coordinates(x * step, y * step), level, step);
                         clusters[level].Add(new Coordinates(x, y).GetHashCode(), newCluster);
 
                         Region newRegion = new Region(newCluster.Tiles(), level);
@@ -104,7 +105,7 @@ namespace DarkNights
                     var cluster = kV.Value;
                     Region region = (Region)cluster.GetGraphs.First();
 
-                    List<GraphEdge> edges = new List<GraphEdge>();
+                    List<InterEdge> edges = new List<InterEdge>();
                     foreach (var neighbour in ClusterNeighbours(cluster))
                     {
                         if (neighbour == null) continue;
@@ -114,12 +115,9 @@ namespace DarkNights
                         edgeBuilder.Tiles = ClusterEdge(cluster, neighbour);
 
                         var built = edgeBuilder.Build();
-                        foreach (var newEdge in built)
-                        {
-                            edges.Add(newEdge);
-                        }
-                    }
-                    region.MatchEdges(edges);
+                        region.UpdateEdge(exit, built);
+                    }                 
+                    cluster.RebuildNodes();
                 }
             }
         }
@@ -127,32 +125,31 @@ namespace DarkNights
 
         public static NavPath Path(Vector2 A, Vector2 B)
         {
-            instance.instance_PathHierarchal(A, B);
-            return instance.instance_Path(A, B);
+            //instance.instance_PathHierarchal(A, B);
+            return instance.instance_BasicAStar(A, B);
         }
 
-        private NavPath instance_Path(Vector2 A, Vector2 B)
+        private NavPath instance_BasicAStar(Vector2 A, Vector2 B)
         {
             Coordinates destination = (Coordinates)B;
             if (TryGetNode(B, out INavNode node))
             {
-                if(node.Passability == PassabilityFlags.Impassable)
+                if (node.Passability == PassabilityFlags.Impassable)
                 {
                     log.Warn($"Impassable Node @ {destination}");
                     return null;
                 }
             }
 
-            var heuristic = new AStarTiles(A, B);
             NavPath path = new NavPath();
-            path.TilePath = heuristic.Path();
+            PathNode startNode = new PathNode(A, null);
+            PathNode endNode = new PathNode(B, null);
+            path.Completed += startNode.Clear;
+            path.Completed += endNode.Clear;
 
-            /*Stack<Coordinates> tilePath = new Stack<Coordinates>();
-            foreach (var tile in DrawLine(B,A))
-            {
-                tilePath.Push(tile);
-            }
-            path.TilePath = tilePath;*/
+            var heuristic = new AStarTiles(A, B);
+            //path.Completed += () => { ClearPathNode(startNode); ClearPathNode(endNode); };
+            path.TilePath = heuristic.Path();
             return path;
         }
 
@@ -165,8 +162,8 @@ namespace DarkNights
 
             for (int level = clusters.Length-1; level >= 0; level--)
             {
-                Cluster layerStart = Cluster(start, level);
-                Cluster layerGoal = Cluster(goal, level);
+                IGraph layerStart = Graph(start, level);
+                IGraph layerGoal = Graph(goal, level);
 
                 if (layerStart == layerGoal)
                 {
@@ -177,7 +174,6 @@ namespace DarkNights
             if (commonParent != -1)
             {
                 log.Info($"Common parent @ level {commonParent}");
-
             }
             else
             {
@@ -216,105 +212,59 @@ namespace DarkNights
             }
         }
 
-
-        private void CalculateRegions(Coordinates Coordinates)
-        {
-            Cluster cluster = Cluster(Coordinates);
-
-            RegionBuilder builder = new RegionBuilder();
-            builder.Start = cluster.Origin;
-            builder.Bounds = (cluster.Minimum, cluster.Maximum);
-            builder.Previous = cluster.GetGraphs.ToArray();
-            builder.Build(cluster);
-
-            cluster.SetGraphs(builder.Regions);
-
-            // Remove existing edges
-            foreach (var invalid in builder.Previous)
-            {
-                foreach (var exit in invalid.Exits)
-                {
-                    exit.UpdateEdge(invalid, null);
-                }
-            }
-
-            // Add the new ones
-            foreach (var graph in cluster.GetGraphs)
-            {
-                foreach (var exit in graph.Exits)
-                {
-                    exit.UpdateEdge(graph, graph.GetEdges(exit));
-                }
-            }
-
-            Cluster parentCluster = ClusterParent(cluster);
-
-            builder = new RegionBuilder();
-            builder.Start = parentCluster.Origin;
-            builder.Bounds = (parentCluster.Minimum, parentCluster.Maximum);
-            builder.Previous = parentCluster.GetGraphs.ToArray();
-            builder.Build(parentCluster);
-
-            parentCluster.SetGraphs(builder.Regions);
-
-            // Remove existing edges
-            foreach (var invalid in builder.Previous)
-            {
-                foreach (var exit in invalid.Exits)
-                {
-                    exit.UpdateEdge(invalid, null);
-                }
-            }
-
-            // Add the new ones
-            foreach (var graph in parentCluster.GetGraphs)
-            {
-                foreach (var exit in graph.Exits)
-                {
-                    exit.UpdateEdge(graph, graph.GetEdges(exit));
-                }
-            }
-        }
-
         public void AddNavNode(INavNode Node)
         {
-            INavNode existing = this.Node(Node.Coordinates, out Chunk chunk);
-            if (chunk != null)
+            INavNode existing = instance_Node(Node.Coordinates, out Cluster cluster);
+            if (cluster != null)
             {
-                if (existing != null)
+                if (cluster.AddNode(Node))
                 {
-                    int curType = (int)existing.Passability;
-                    int newType = (int)Node.Passability;
-
-                    if (newType > curType)
-                    {
-                        chunk.Nodes.Remove(existing);
-                        chunk.Nodes.Add(Node);
-                        NavNodeRemoved(existing);
-                    }
-                }
-                else
-                {
-                    chunk.Nodes.Add(Node);
                     NavNodeAdded(Node);
+                    log.Debug($"Node added to cluster @ {cluster.ClusterCoordinates}");
                 }
-                log.Debug($"Node added to chunk @ {chunk.ChunkCoordinates}");
-            }
 
-            if ((Node.Passability & PassabilityFlags.Impassable) == PassabilityFlags.Impassable)
-            {
-                AddClearanceNodes(Node);
-                CalculateRegions(Node.Coordinates);
             }
         }
 
-
-        private void AddClearanceNodes(INavNode Node)
+        public void RemoveNode(INavNode Node)
         {
-            foreach (var tile in Node.Coordinates.Adjacent)
+            Cluster cluster = Cluster(Node.Coordinates);
+            if (cluster != null)
             {
-                NavNode adj = new NavNode(tile, PassabilityFlags.Pathing);
-                AddNavNode(adj);
+                if (cluster.RemoveNode(Node))
+                {
+                    NavNodeRemoved(Node);
+                    log.Debug($"Node removed from cluster @ {cluster.ClusterCoordinates}");
+                }
+            }
+        }
+
+        public void AddTemporaryNode(PathNode Node)
+        {
+            temporaryNodes.Add(Node);
+        }
+
+        public void ClearTemporaryNode(PathNode node)
+        {
+            temporaryNodes.Remove(node);
+        }
+
+        public void RebuildGraphTree(Coordinates coordinates)
+        {
+            List<Cluster> rebuilt = new List<Cluster>();
+            for (int depth = 0; depth < clusters.Length; depth++)
+            {
+                Cluster cluster = Cluster(coordinates, depth);
+                cluster.BuildRegions();
+                rebuilt.Add(cluster);
+            }
+            foreach (var cluster in rebuilt)
+            {
+                cluster.RebuildNodes();
+                foreach (var neighbour in ClusterNeighbours(cluster))
+                {
+                    neighbour.RebuildNodes();
+                }
             }
         }
 
@@ -332,26 +282,31 @@ namespace DarkNights
 
         public bool TryGetNode(Coordinates Coordinates, out INavNode Node)
         {
-            Node = NavigationSystem.Node(Coordinates);
+            Node = NavSys.Node(Coordinates);
             return Node != null;
         }
 
         public static INavNode Node(Coordinates Coordinates)
         {
-            Chunk chunk = Chunk.Get(Coordinates);
-            if (chunk != null)
+            return instance.instance_Node(Coordinates);
+        }
+
+        public INavNode instance_Node (Coordinates Coordinates)
+        {
+            Cluster cluster = Cluster(Coordinates, 0);
+            if (cluster != null)
             {
-                return chunk.Node(Coordinates);
+                return cluster.Node(Coordinates);
             }
             return null;
         }
 
-        public INavNode Node(Coordinates Coordinates, out Chunk chunk)
+        public INavNode instance_Node(Coordinates Coordinates, out Cluster cluster)
         {
-            chunk = Chunk.Get(Coordinates);
-            if (chunk != null)
+            cluster = Cluster(Coordinates, 0);
+            if (cluster != null)
             {
-                return chunk.Node(Coordinates);
+                return cluster.Node(Coordinates);
             }
             return null;
         }
@@ -369,6 +324,14 @@ namespace DarkNights
             }
             //log.Trace($"No Cluster @ {origin}");
             return default;
+        }
+
+        public IEnumerable<Cluster> ClusterTree(Coordinates Coordinates)
+        {
+            for (int depth = 0; depth < clusters.Length; depth++)
+            {
+                yield return Cluster(Coordinates, depth);
+            }
         }
 
         public IGraph Graph(Coordinates Coordinates, int depth = 0)
@@ -391,10 +354,57 @@ namespace DarkNights
             return null;
         }
 
+        public IEnumerable<Cluster> ClustersInRadius(Vector2 position, float tiles, int depth = 0)
+        {
+            //tiles *= Defs.UnitPixelSize;
+            Vector2 min = new Vector2(position.X - tiles, position.Y - tiles);
+            Vector2 max = new Vector2(position.X + tiles, position.Y + tiles);
+            Coordinates tileMin = new Coordinates(min);
+            Coordinates tileMax = new Coordinates(max);
+
+            Cluster clusterMin = Cluster(tileMin, depth);
+            Cluster clusterMax = Cluster(tileMax, depth);
+
+            if (clusterMin == null || clusterMax == null) yield break;
+
+            for (int x = tileMin.X; x <= tileMax.X; x+=clusterMin.Size)
+            {
+                for (int y = tileMin.Y; y <= tileMax.Y; y+=clusterMin.Size)
+                {
+                    yield return Cluster(new Coordinates(x, y), depth);
+                }
+            }
+        }
+
+        public IEnumerable<Cluster> ClustersInRadius(Vector2 position, float tiles)
+        {
+            //tiles *= Defs.UnitPixelSize;
+            Vector2 min = new Vector2(position.X - tiles, position.Y - tiles);
+            Vector2 max = new Vector2(position.X + tiles, position.Y + tiles);
+            Coordinates tileMin = new Coordinates(min);
+            Coordinates tileMax = new Coordinates(max);
+
+            Cluster clusterMin = Cluster(tileMin, 0);
+            Cluster clusterMax = Cluster(tileMax, 0);
+
+            if (clusterMin == null || clusterMax == null) yield break;
+
+            for (int x = tileMin.X; x <= tileMax.X; x += clusterMin.Size)
+            {
+                for (int y = tileMin.Y; y <= tileMax.Y; y += clusterMin.Size)
+                {
+                    for (int depth = 0; depth < clusters.Length; depth++)
+                    {
+                        yield return Cluster(new Coordinates(x, y), depth);
+                    }
+                }
+            }
+        }
+
         public Cluster ClusterNeighbour(Cluster centre, Coordinates dir)
         {
             Coordinates neighbouringEdge = centre.Origin + new Coordinates(dir.X * centre.Size, dir.Y * centre.Size);
-            return Cluster(neighbouringEdge, ClusterFromStep(centre.Size));
+            return Cluster(neighbouringEdge, centre.Depth);
         }
 
         public IEnumerable<Cluster> ClusterNeighbours(Cluster centre)
@@ -427,7 +437,7 @@ namespace DarkNights
 
         public Cluster ClusterParent(Cluster child)
         {
-            int level = child.Level + 1;
+            int level = child.Depth + 1;
             if (level > clusters.Length) return null;
             return Cluster(child.Origin, level);
         }
@@ -508,33 +518,33 @@ namespace DarkNights
     public interface IGraph
     {
         // Graphs this exit out to.
-        int Depth { get; }
-        IGraph[] Exits { get; }
         Coordinates Origin { get; }
-        GraphEdge[] Edges { get; }
+        IEnumerable<IGraph> Exits { get; }
+        InterEdge[] Edges { get; }
+        int Depth { get; }
 
         IEnumerable<Coordinates> Area { get; }
         IEnumerable<IGraph> GetGraph { get; }
         IEnumerable<IGraph> GraphTree { get; }
         IEnumerable<IGraph> GraphChildren { get; }
 
-        void UpdateEdge(IGraph Graph, IEnumerable<GraphEdge> newEdges);
-        void MatchEdges(IEnumerable<GraphEdge> newEdges);
-        IEnumerable<GraphEdge> GetEdges(IGraph Graph);
+        void UpdateEdge(IGraph Graph, IEnumerable<InterEdge> newEdges);
+        IEnumerable<InterEdge> GetEdges(IGraph Graph);
     }
 
     public class Region : IGraph
     {
-        public int Depth { get; private set; }
-        public GraphEdge[] Edges => GetEdges().ToArray();
-        public IGraph[] Exits => exits;
-        private IGraph[] exits;
         public Coordinates Origin { get; private set; }
-        private Dictionary<IGraph, GraphEdge[]> edges;
+        public InterEdge[] Edges => GetEdges().ToArray();
+        public int Depth { get; private set; }
+
 
         public IEnumerable<Coordinates> Area => area;
+
         private HashSet<Coordinates> area;
+        private Dictionary<IGraph, InterEdge[]> edges;
         private IGraph[] subGraphs;
+        private IGraph[] exits;
 
         public Region(IEnumerable<Coordinates> Area,IGraph[] SubGraphs, int depth)
         {
@@ -601,8 +611,21 @@ namespace DarkNights
             }
         }
 
-        public IEnumerable<GraphEdge> GetEdges()
+        public IEnumerable<IGraph> Exits
         {
+            get
+            {
+                if (exits == null) yield break;
+                foreach (var exit in exits)
+                {
+                    yield return exit;
+                }
+            }
+        }
+
+        public IEnumerable<InterEdge> GetEdges()
+        {
+            if (edges == null) yield break;
             foreach (var edgeKV in edges)
             {
                 foreach (var edge in edgeKV.Value)
@@ -612,7 +635,7 @@ namespace DarkNights
             }
         }
 
-        public IEnumerable<GraphEdge> GetEdges(IGraph Graph)
+        public IEnumerable<InterEdge> GetEdges(IGraph Graph)
         {
             if (edges == null || edges.Count == 0) yield break;
             if (edges.ContainsKey(Graph))
@@ -625,7 +648,7 @@ namespace DarkNights
             yield break;
         }
 
-        public void UpdateEdge(IGraph Graph, IEnumerable<GraphEdge> newEdges)
+        public void UpdateEdge(IGraph Graph, IEnumerable<InterEdge> newEdges)
         {
             if(newEdges == null)
             {
@@ -633,10 +656,14 @@ namespace DarkNights
                 {
                     edges.Remove(Graph);
                 }
+                else
+                {
+                    edges = new Dictionary<IGraph, InterEdge[]>();
+                }
             }
             else if(edges == null || edges.Count == 0)
             {
-                edges = new Dictionary<IGraph, GraphEdge[]>
+                edges = new Dictionary<IGraph, InterEdge[]>
                 {
                     { Graph, newEdges.ToArray() }
                 };
@@ -650,51 +677,6 @@ namespace DarkNights
                 else
                 {
                     edges.Add(Graph,newEdges.ToArray());
-                }
-            }
-
-            UpdateExits();
-        }
-
-        public void MatchEdges(IEnumerable<GraphEdge> newEdges)
-        {
-            if (edges == null || edges.Count == 0)
-            {
-                Dictionary<IGraph, List<GraphEdge>> temp = new Dictionary<IGraph, List<GraphEdge>>();
-                foreach (var edge in newEdges)
-                {
-                    bool connected = edge.Source == this || edge.Cast == this;
-                    if (!connected) continue;
-                    var other = edge.Source == this ? edge.Cast : edge.Source;
-                    if (temp.ContainsKey(other)) temp[other].Add(edge);
-                    else temp.Add(other, new List<GraphEdge>() { edge });
-                }
-
-                edges = new Dictionary<IGraph, GraphEdge[]>();
-                foreach (var edge in temp)
-                {
-                    edges.Add(edge.Key, edge.Value.ToArray());
-                }
-            }
-            else
-            {
-                Dictionary<IGraph, List<GraphEdge>> temp = new Dictionary<IGraph, List<GraphEdge>>();
-                foreach (var edge in newEdges)
-                {
-                    var other = edge.Source == (IGraph)this ? edge.Cast : edge.Source;
-                    if (temp.ContainsKey(other)) temp[other].Add(edge);
-                    else temp.Add(other, new List<GraphEdge>() { edge });
-                }
-                foreach (var edgeKv in edges)
-                {
-                    if (temp.ContainsKey(edgeKv.Key)) continue;
-                    else temp.Add(edgeKv.Key, edgeKv.Value.ToList());
-                }
-
-                edges = new Dictionary<IGraph, GraphEdge[]>();
-                foreach (var edge in temp)
-                {
-                    edges.Add(edge.Key, edge.Value.ToArray());
                 }
             }
 
@@ -717,11 +699,25 @@ namespace DarkNights
         }
     }
 
+    /// <summary>
+    /// Clusters are responsibly for updating & storing pathfinding data.
+    /// </summary>
     public class Cluster
     {
         //public Cluster Parent;
-        public Coordinates Origin { get; set; }
-        public int Size;
+        public Coordinates Origin { get; private set; }
+        public int Depth { get; private set; }
+        public int Size { get; private set; }
+
+        public List<INavNode> Nodes { get; private set; } = new List<INavNode>();
+        public IGraph[] SubGraphs { get; private set; }
+
+        public Coordinates Centre => new Coordinates(Origin.X + Size / 2, Origin.Y + Size / 2);
+        public Coordinates Minimum => this.Origin;
+        public Coordinates Maximum => new Coordinates(Origin.X + Size, Origin.Y + Size);
+
+        private GraphEdgeNode[] edgeNodes;
+
         public Coordinates ClusterCoordinates
         {
             get
@@ -732,19 +728,122 @@ namespace DarkNights
             }
         }
 
-        public int Level => NavigationSystem.Get.ClusterFromStep(this.Size);
-        public Coordinates Centre => new Coordinates(Origin.X + Size / 2, Origin.Y + Size / 2);
-        public Coordinates Minimum => this.Origin;
-        public Coordinates Maximum => new Coordinates(Origin.X + Size, Origin.Y + Size);
+        public Cluster(Coordinates Origin, int Depth, int Size)
+        {
+            this.Origin = Origin; this.Depth = Depth; this.Size = Size;
+        }
 
-        private IGraph[] subGraphs;
+        public INavNode Node(Coordinates Coordinates)
+        {
+            INavNode ret = null;
+            foreach (var node in Nodes)
+            {
+                if (node.Coordinates == Coordinates)
+                {
+                    ret = node;
+                }
+            }
+            return ret;
+        }
+
+        public bool AddNode(INavNode node)
+        {
+            Nodes.Add(node);
+            if ((node.Passability & PassabilityFlags.Impassable) != 0) RebuildGraphs(node.Coordinates);
+            return true;
+        }
+
+        public bool RemoveNode(INavNode node)
+        {
+            bool removed = Nodes.Remove(node);
+            if (removed)
+            {
+                if ((node.Passability & PassabilityFlags.Impassable) != 0) RebuildGraphs(node.Coordinates);
+            }
+            return removed;
+        }
+
+        public void SetGraphs(IGraph[] graphs)
+        {
+            this.SubGraphs = graphs;
+        }
+
+        private void RebuildGraphs(Coordinates source)
+        {
+            NavSys.Get.RebuildGraphTree(source);
+        }
+
+        public void BuildRegions()
+        {
+            RegionBuilder builder = new RegionBuilder();
+            builder.Start = Origin;
+            builder.Bounds = (Minimum, Maximum);
+            builder.Previous = GetGraphs.ToArray();
+            builder.Build(this);
+
+            SetGraphs(builder.Regions);
+
+            // Remove existing edges
+            foreach (var invalid in builder.Previous)
+            {
+                foreach (var exit in invalid.Exits)
+                {
+                    exit.UpdateEdge(invalid, null);
+                }
+            }
+
+            // Add the new ones
+            foreach (var graph in GetGraphs)
+            {
+                if (graph.Exits == null) continue;
+                foreach (var exit in graph.Exits)
+                {
+                    exit.UpdateEdge(graph, graph.GetEdges(exit));
+                }
+            }
+        }
+
+        public void RebuildNodes()
+        {
+            Dictionary<int, List<GraphEdgeNode>> built = new Dictionary<int,List<GraphEdgeNode>>();
+            // Generate all the nodes
+            foreach (var graph in GetGraphs)
+            {
+                foreach (var edge in graph.Edges)
+                {
+                    if (edge.Connected(graph, out IGraph cast, out Coordinates sourceTile, out Coordinates castTile))
+                    {
+                        GraphEdgeNode node = new GraphEdgeNode(sourceTile, edge.Depth);
+                        int hash = graph.GetHashCode();
+
+                        if (built.ContainsKey(hash)) built[hash].Add(node);
+                        else built.Add(graph.GetHashCode(), new List<GraphEdgeNode>() { node });
+                    }
+                }
+            }
+
+            // Now connect all of them
+            List<GraphEdgeNode> allNodes = new List<GraphEdgeNode>();
+            foreach (var kV in built)
+            {
+                foreach (var node in kV.Value)
+                {
+                    var clusterNodes = kV.Value.Where(x => x.Coordinates != node.Coordinates).ToArray();
+                    var neighbours = new GraphEdgeNode[clusterNodes.Length+1];
+                    clusterNodes.CopyTo(neighbours, 0);
+                    node.SetNeighbours(clusterNodes);
+                    allNodes.Add(node);
+                }
+            }
+            this.edgeNodes = allNodes.ToArray();
+        }
 
         public IEnumerable<IGraph> GetGraphs
         {
             get
             {
-                if (subGraphs == null) yield break;
-                foreach (var graph in subGraphs)
+                if (SubGraphs == null) yield break;
+                foreach (var graph in SubGraphs)
                 {
                     yield return graph;
                 }
@@ -755,8 +854,8 @@ namespace DarkNights
         {
             get
             {
-                if (this.Level == 0) yield break;
-                foreach (var child in NavigationSystem.Get.ClusterChildren(this, this.Level))
+                if (this.Depth == 0) yield break;
+                foreach (var child in NavSys.Get.ClusterChildren(this, this.Depth))
                 {
                     if(child != null) yield return child;
                 }
@@ -767,7 +866,7 @@ namespace DarkNights
         {
             get
             {
-                if (subGraphs == null || subGraphs.Length == 0) yield break;
+                if (SubGraphs == null || SubGraphs.Length == 0) yield break;
 
                 Queue<Cluster> nodes = new Queue<Cluster>();
                 foreach (var child in Children)
@@ -796,8 +895,6 @@ namespace DarkNights
         {
             get
             {
-                //if (subGraphs == null || subGraphs.Length == 0) yield break;
-
                 Queue<Cluster> nodes = new Queue<Cluster>();
                 foreach (var child in Children)
                 {
@@ -812,7 +909,6 @@ namespace DarkNights
                 {
                     Cluster cluster = nodes.Dequeue();
 
-                    //TO-DO: Recursive
                     foreach (var graph in cluster.GraphTree)
                     {
                         yield return graph;
@@ -823,12 +919,6 @@ namespace DarkNights
                     }
                 }
             }
-        }
-
-
-        public void SetGraphs(IGraph[] graphs)
-        {
-            this.subGraphs = graphs;
         }
 
         public IEnumerable<Coordinates> Tiles()
@@ -842,204 +932,38 @@ namespace DarkNights
             }
         }
 
+        public bool Contains(Coordinates Coordinates)
+        {
+            if (Coordinates.X >= Minimum.X && Coordinates.X < Maximum.X && Coordinates.Y >= Minimum.Y && Coordinates.Y < Maximum.Y) return true;
+            return false;
+        }
+
+        public IEnumerable<INavNode> AllNodes
+        {
+            get
+            {
+                if (Nodes != null)
+                {
+                    foreach (var node in Nodes)
+                    {
+                        yield return node;
+                    }
+
+                }
+                if(edgeNodes != null)
+                {
+                    foreach (var edge in edgeNodes)
+                    {
+                        yield return edge;
+                    }
+                }
+
+            }
+        }
+
         public override int GetHashCode()
         {
             return Origin.GetHashCode() ^ Size.GetHashCode();
-        }
-    }
-
-    public class NavigationGizmo : IGizmo
-    {
-        public bool Enabled { get; set; }
-
-        public bool DrawNodes { get { return _drawNodes; } set { _drawNodes = value; } }
-        private bool _drawNodes = false;
-        private float drawNodesRadius = 12.0f;
-
-        public bool DrawPaths { get { return _drawPaths; } set { _drawPaths = value; } }
-        private bool _drawPaths = false;
-
-        public bool DrawClusters { get; set; }
-
-        public bool DrawRegions { get; set; }
-        public bool DrawRegionBounds { get; set; }
-        public bool DrawRegionEdges { get; set; }
-
-
-        private Color inactivePathColor = new Color(25, 25, 25, 25);
-        private Color activePathColor = new Color(40, 40, 40, 40);
-        private Color nextPathColor = new Color(90, 90, 90, 90);
-        private Color[] clusterLevelColor = new Color[] { new Color(0.1f, 0.1f, 0.5f, 0.2f), new Color(0.1f, 0.5f, 0.1f, 0.2f), new Color(0.5f, 0.1f, 0.1f, 0.2f) };
-
-        public NavigationGizmo()
-        {
-            Debug.NewWorldGizmo(this);
-            drawNodesRadius *= Defs.UnitPixelSize;
-        }
-
-        public void Update() { }
-
-        public void Draw()
-        {
-            if (_drawNodes)
-            {
-                Vector2 pos = Camera.ScreenToWorld(Cursor.Position);
-                foreach (var chunk in WorldSystem.Get.ChunksInRadius(pos, drawNodesRadius))
-                {
-                    if (chunk == null) continue;
-                    foreach (var node in chunk.Nodes)
-                    {
-                        float length = Vector2.Distance(pos, node.Position);
-                        if (length > drawNodesRadius) continue;
-                        DrawNode(node, 1.0f - (length / drawNodesRadius));
-                    }
-                }
-            }
-            if (_drawPaths)
-            {
-                var character = PlayerController.Get.PlayerCharacter.Movement;
-                if (character.MovementPath != null)
-                {
-                    foreach (var node in character.MovementPath.TilePath)
-                    {
-                        DrawUtils.DrawRectangleToWorld(node, Defs.UnitPixelSize, Defs.UnitPixelSize, node==character.nextNode ? nextPathColor : activePathColor);
-                    }
-                    foreach (var inactiveNode in character.MovementPath.lastPath)
-                    {
-                        DrawUtils.DrawRectangleToWorld(inactiveNode, Defs.UnitPixelSize, Defs.UnitPixelSize, inactivePathColor);
-                    }
-                }
-            }
-            if (DrawClusters)
-            {
-                for (int level = 0; level < NavigationSystem.Get.clusters.Length; level++)
-                {
-                    var color = clusterLevelColor[level];
-                    foreach (var clusterKv in NavigationSystem.Get.clusters[level])
-                    {
-                        var cluster = clusterKv.Value;
-                        Vector2[] corners = new Vector2[4];
-
-                        corners[0] = new Coordinates(0, 0);
-                        corners[1] = new Coordinates(cluster.Size, 0);
-                        corners[2] = new Coordinates(cluster.Size, cluster.Size);
-                        corners[3] = new Coordinates(0, cluster.Size);
-
-                        int offset = NavigationSystem.Get.clusters.Length - level;
-
-                        corners[0] += new Vector2(5f, 5f) * offset;
-                        corners[1] += new Vector2(-5f, 5f) * offset;
-                        corners[2] += new Vector2(-5f, -5f) * offset;
-                        corners[3] += new Vector2(5f, -5f) * offset;
-
-                        var polygon = new Polygon(corners, cluster.Origin);
-
-                        DrawUtils.DrawPolygonOutlineToWorld(polygon, color, 3.0f);
-                    }
-                }
-            }
-            if (DrawRegions)
-            {
-                Vector2 pos = Camera.ScreenToWorld(Cursor.Position);
-                int level = 1;
-                if (level >= 1)
-                {
-                    Cluster parent = NavigationSystem.Get.Cluster(pos, 1);
-                    if (parent == null) return;
-
-                    int regionIndex = 0;
-                    foreach (var graph in parent.GetGraphs)
-                    {
-                        Color color = ColorSelector.DebugColor(regionIndex);
-                        DrawGraph(graph, new Color(color, 0.1f), regionIndex);
-                        regionIndex++;
-                    }
-                }
-                else
-                {
-                    Cluster cluster = NavigationSystem.Get.Cluster(pos, 0);
-                    if (cluster == null) return;
-                    int regionIndex = 0;
-                    foreach (var region in cluster.GetGraphs)
-                    {
-                        Color color = ColorSelector.DebugColor(regionIndex);
-                        DrawGraph(region, new Color(color, 0.1f), regionIndex);
-                        regionIndex++;
-                    }
-                }
-
-
-            }
-        }
-
-        private void DrawGraph(IGraph graph, Color color, int index)
-        {
-            foreach (var tile in graph.Area)
-            {
-                DrawUtils.DrawRectangleToWorld(tile, Defs.UnitPixelSize, Defs.UnitPixelSize, color);
-            }
-            if (DrawRegionEdges)
-            {
-                if (graph.Edges == null) return;
-
-                foreach (var edge in graph.Edges)
-                {
-                    Vector2 A = Coordinates.Centre(edge.InterEdge.From);
-                    Vector2 B = Coordinates.Centre(edge.InterEdge.To);
-                    DrawUtils.DrawCircleToWorld(A, Defs.UnitPixelSize / 2, color);
-                    DrawUtils.DrawCircleToWorld(B, Defs.UnitPixelSize / 2, color);
-                    DrawUtils.DrawLineToWorld(A, B, color);
-                    DrawUtils.DrawText($"EXIT {index}", B, color, 0.5f);
-                }
-
-                //foreach (var edge in graph.Edges)
-                //{
-                //    if (edge.Edges == null) return;
-
-                //    foreach (var exit in edge.Edges)
-                //    {
-                //        Vector2 A = Coordinates.Centre(exit.From);
-                //        Vector2 B = Coordinates.Centre(exit.To);
-                //        DrawUtils.DrawCircleToWorld(A, Defs.UnitPixelSize / 2, color);
-                //        DrawUtils.DrawCircleToWorld(B, Defs.UnitPixelSize / 2, color);
-                //        DrawUtils.DrawLineToWorld(A, B, color);
-                //        DrawUtils.DrawText($"EXIT {index}", B, color, 0.5f);
-                //    }
-
-
-
-                //}
-                //var tile = graph.Area.FirstOrDefault();
-                //DrawUtils.DrawText($"R{index}", tile, Color.White, 1.0f);
-            }
-        }
-
-        private void DrawNode(INavNode node, float gradient)
-        {
-            Circle circle = new Circle(Coordinates.Centre(node.Coordinates), Defs.UnitPixelSize/4);
-            Color col;
-            switch (node.Passability)
-            {
-                case PassabilityFlags.Nil:
-                    col = Color.White;
-                    break;
-                case PassabilityFlags.Impassable:
-                    col = new Color(1.0f*gradient, 0.1f, 0.1f, 0.8f*gradient);
-                    break;
-                case PassabilityFlags.Pathing:
-                    col = new Color(1.0f * gradient, 1.0f * gradient, 0.1f, 0.8f*gradient);
-                    break;
-                case PassabilityFlags.Edge:
-                    col = new Color(0.1f, 0.1f, 1.0f*gradient, 0.8f * gradient);
-                    break;
-                case PassabilityFlags.Destination:
-                    col = new Color(0.1f, 1.0f * gradient, 0.1f, 0.8f * gradient);
-                    break;
-                default:
-                    col = Color.White;
-                    break;
-            }
-            DrawUtils.DrawCircleToWorld(circle, col);
         }
     }
 }

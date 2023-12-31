@@ -10,8 +10,6 @@ namespace DarkNights
     {
         public static (int X, int Y) Size => (Defs.ChunkSize, Defs.ChunkSize);
         public Coordinates Origin { get; set; }
-        public Region[] Regions { get; private set; }
-        public List<INavNode> Nodes { get; private set; }
 
         public Coordinates Min => Origin;
         public Coordinates Max => new(Origin.X + Size.X, Origin.Y + Size.Y);
@@ -19,16 +17,6 @@ namespace DarkNights
         public Chunk(Coordinates Origin)
         {
             this.Origin = Origin;
-            Nodes = new List<INavNode>();
-        }
-
-        public INavNode Node(Coordinates coord)
-        {
-            foreach (var node in Nodes)
-            {
-                if (node.Coordinates == coord) return node;
-            }
-            return null;
         }
 
         public IEnumerable<Coordinates> Tiles()
