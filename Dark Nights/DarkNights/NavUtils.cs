@@ -1,6 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -57,7 +58,7 @@ namespace DarkNights
         }
     }
 
-    public struct GraphEdgeNode : INavNode
+    public class GraphEdgeNode : INavNode
     {
         public PassabilityFlags Passability => PassabilityFlags.Pathing;
         public Coordinates Coordinates { get; private set; }
@@ -79,68 +80,145 @@ namespace DarkNights
         }
     }
 
-    public struct InterEdge
+    public class GraphConnection
     {
-        public Coordinates[][] Tiles;
-        public Coordinates[] Linked;
-        public int Clearance;
         public int Depth;
+        public IGraph Cast;
+        private IGraph Source;
 
-        private int sourceHash;
+        private Dictionary<int, GraphEdgeNode> interEdgeNodes = new Dictionary<int, GraphEdgeNode>();
+        private Dictionary<int, List<InterEdgeData>> interEdgeData = new Dictionary<int, List<InterEdgeData>>();
 
-        public InterEdge(IGraph Source, Coordinates[][] Tiles, int Depth)
+        public GraphConnection(IGraph source, IGraph cast, int depth)
         {
-            this.Tiles = Tiles; this.Depth = Depth;
-
-            int index = Tiles[0].Length / 2;
-            Linked = new Coordinates[] { Tiles[0][index], Tiles[1][index] };
-            Clearance = Tiles[0].Length;
-
-            sourceHash = Source.GetHashCode();
+            this.Source = source; this.Cast = cast; this.Depth = depth;
         }
 
-        public IEnumerable<IGraph> Graphs()
+        public GraphConnection Pair(IGraph newSource)
         {
-            yield return NavSys.Get.Graph(Linked[0], Depth);
-            yield return NavSys.Get.Graph(Linked[1], Depth);
+            GraphConnection pair = new GraphConnection(newSource, newSource == Cast ? Source : Cast, Depth);
+            pair.Add(interEdgeData);
+            pair.PreGraph();
+            return pair;
         }
 
-        public bool Connected(IGraph source, out IGraph cast, out Coordinates sourceTile, out Coordinates castTile)
+        public void Add(IGraph graph, Coordinates[] tiles)
         {
-            sourceTile = default;
-            castTile = default;
-            cast = null;
-
-            bool connected = false;
-            foreach (var graph in Graphs())
+            var symmetryIndex = tiles.Length / 2;
+            var data = new InterEdgeData(tiles, tiles[symmetryIndex]);
+            if (interEdgeData.TryGetValue(graph.GetHashCode(), out List<InterEdgeData> existing))
             {
-                if (graph == source) connected = true;
-                else cast = graph;
+                existing.Add(data);
             }
-            if (!connected) return false;
-
-            if (source.GetHashCode() == sourceHash) { sourceTile = Linked[0]; castTile = Linked[1]; }
-            else { sourceTile = Linked[1]; castTile = Linked[0]; }
-            return true;
+            else
+            {
+                interEdgeData.Add(graph.GetHashCode(), new List<InterEdgeData>() { data });
+            }
         }
 
-        public bool Connected(IGraph source, out IGraph cast, out IEnumerable<Coordinates> sourceEdge, out IEnumerable<Coordinates> castEdge)
+        private void Add(Dictionary<int, List<InterEdgeData>> data)
         {
-            sourceEdge = null;
-            castEdge = null;
-            cast = null;
-
-            bool connected = false;
-            foreach (var graph in Graphs())
+            foreach (var kV in data)
             {
-                if (graph == source) connected = true;
-                else cast = graph;
+                interEdgeData.Add(kV.Key, kV.Value);
             }
-            if (!connected) return false;
+        }
 
-            if (source.GetHashCode() == sourceHash) { sourceEdge = Tiles[0]; castEdge = Tiles[1]; }
-            else { sourceEdge = Tiles[1]; castEdge = Tiles[0]; }
-            return true;
+        public void PreGraph()
+        {
+            interEdgeNodes = new Dictionary<int, GraphEdgeNode>();
+            if(interEdgeData.Count > 0)
+            {
+                foreach (var edge in interEdgeData[Source.GetHashCode()])
+                {
+                    Coordinates Coordinates = edge.Node;
+                    GraphEdgeNode node = new GraphEdgeNode(Coordinates, Depth);
+                    interEdgeNodes.Add(edge.GetHashCode(), node);
+                }
+            }
+        }
+
+        public void BuildGraph()
+        {
+            if (interEdgeData.Count > 0)
+            {
+                foreach (var edge in interEdgeData[Cast.GetHashCode()])
+                {
+                    interEdgeNodes.Remove(edge.GetHashCode());
+                    Coordinates Coordinates = edge.Node;
+                    if (NavSys.Get.TryGetNode<GraphEdgeNode>(Coordinates, out GraphEdgeNode node, Depth))
+                    {
+                        interEdgeNodes.Add(edge.GetHashCode(), node);
+                    }
+                }
+            }
+        }
+
+        public IEnumerable<InterEdgeData> EdgeData(IGraph Graph)
+        {
+            if (interEdgeData.TryGetValue(Graph.GetHashCode(), out List<InterEdgeData> data)) 
+            {
+                foreach (var edge in data)
+                {
+                    yield return edge;
+                }
+            }
+        }
+
+        public GraphEdgeNode Node(InterEdgeData data)
+        {
+            if (interEdgeNodes.TryGetValue(data.GetHashCode(), out GraphEdgeNode node))
+            {
+                return node;
+            }
+            return null;
+        }
+
+        public IEnumerable<GraphEdgeNode> EdgeNodes(IGraph Graph)
+        {
+            if (interEdgeData.TryGetValue(Graph.GetHashCode(), out List<InterEdgeData> data))
+            {
+                foreach (var edge in data)
+                {
+                    if (interEdgeNodes.TryGetValue(edge.GetHashCode(), out GraphEdgeNode node))
+                    {
+                        yield return node;
+                    }
+                }
+            }
+        }
+
+        public IEnumerable<InterEdgeData> AllEdges
+        {
+            get
+            {
+                if (interEdgeData == null) yield break;
+                foreach (var data in interEdgeData)
+                {
+                    foreach (var edge in data.Value)
+                    {
+                        yield return edge;
+                    }
+
+                }
+            }
+        }
+
+        public struct InterEdgeData
+        {
+            public Coordinates[] Tiles;
+            public Coordinates Node;
+            public int Clearance => Tiles.Length;
+
+            public InterEdgeData(Coordinates[] tiles, Coordinates node)
+            {
+                Tiles = tiles; Node = node;
+            }
+
+            public override int GetHashCode()
+            {
+                return Node.GetHashCode();
+            }
         }
     }
 
@@ -239,15 +317,15 @@ namespace DarkNights
             while (queue.Count > 0)
             {
                 IGraph current = queue.Dequeue();
-                foreach (var exit in current.Exits)
+                foreach (var connection in current.Connections)
                 {
-                    foreach (var graph in exit.GetGraph)
+                    foreach (var graph in connection.Cast.GetGraph)
                     {
                         // Can we traverse back to the original graph?
-                        if (!(graph.Exits.Contains(current)))
-                        {
-                            continue;
-                        }
+                        //if (!(graph.Exits.Contains(current)))
+                        //{
+                        //    continue;
+                        //}
 
                         // Have we been checked already?
                         if (closedSet.Contains(graph)) continue;
@@ -267,6 +345,7 @@ namespace DarkNights
                         queue.Enqueue(graph);
                     }
                 }
+               
             }
             if (traversible.Count > 0)
             {
@@ -295,11 +374,9 @@ namespace DarkNights
             Queue<Coordinates> queue = new Queue<Coordinates>();
             queue.Enqueue(origin);
 
-            if (!(Nav.Impassable(origin)))
-            {
-                traversible.AddLast(origin);
-            }
             closedSet.Add(origin);
+            if ((Nav.Impassable(origin))) return null;
+            traversible.AddLast(origin);
 
             while (queue.Count > 0)
             {
@@ -373,35 +450,38 @@ namespace DarkNights
 
             foreach (var subGraph in source.GraphChildren)
             {
-                foreach (var subExit in subGraph.Exits)
+                foreach (var connection in subGraph.Connections)
                 {
-                    IGraph exit = Nav.Graph(subExit.Origin, source.Depth);
+                    IGraph exit = Nav.Graph((Coordinates)connection.Cast.Origin, source.Depth);
                     if (exit == source) continue;
                     if (!(edges.Contains(exit))) continue;
 
                     if (graphExits.Contains(exit))
                     {
                         var graphEdge = edgeBuilders[exit.GetHashCode()];
-                        foreach (var edge in subGraph.GetEdges(subExit))
+                        foreach (var data in connection.EdgeData(subGraph))
                         {
-                            if (edge.Connected(subGraph, out IGraph cast, out IEnumerable<Coordinates> sourceEdge, out IEnumerable<Coordinates> castEdge))
-                            {
-                                graphEdge.AddTiles(source, sourceEdge);
-                                graphEdge.AddTiles(exit, castEdge);
-                            }
+                            graphEdge.AddTiles(source, data.Tiles);
+
                         }
+                        foreach (var data in connection.EdgeData(connection.Cast))
+                        {
+                            graphEdge.AddTiles(exit, data.Tiles);
+                        }
+
                     }
                     else
                     {
                         GraphEdgeBuilder graphEdge = new GraphEdgeBuilder(new IGraph[] { source, exit });
 
-                        foreach (var edge in subGraph.GetEdges(subExit))
+                        foreach (var data in connection.EdgeData(subGraph))
                         {
-                            if (edge.Connected(subGraph, out IGraph cast, out IEnumerable<Coordinates> sourceEdge, out IEnumerable<Coordinates> castEdge))
-                            {
-                                graphEdge.AddTiles(source, sourceEdge);
-                                graphEdge.AddTiles(exit, castEdge);
-                            }
+                            graphEdge.AddTiles(source, data.Tiles);
+
+                        }
+                        foreach (var data in connection.EdgeData(connection.Cast))
+                        {
+                            graphEdge.AddTiles(exit, data.Tiles);
                         }
 
                         edgeBuilders.Add(exit.GetHashCode(), graphEdge);
@@ -454,7 +534,7 @@ namespace DarkNights
             Tiles[1].AddRange(tiles[indexB]);
         }
 
-        public IEnumerable<InterEdge> Build()
+        public GraphConnection Build()
         {
             Coordinates[] exitsA = Tiles[0].OrderBy(a => a.X).ThenBy(a => a.Y).ToArray();
             Coordinates[] exitsB = Tiles[1].OrderBy(a => a.X).ThenBy(a => a.Y).ToArray();
@@ -495,11 +575,15 @@ namespace DarkNights
                 edges.Add(new Coordinates[][] { exitsA[prevIndex..curIndex], exitsB[prevIndex..curIndex] });
             }
 
+            GraphConnection connection = new GraphConnection(Graphs[0], Graphs[1], Graphs[0].Depth);
+
             foreach (var edge in edges)
             {
-                InterEdge graphEdge = new InterEdge(Graphs[0], edge, Graphs[0].Depth);
-                yield return graphEdge;
+                connection.Add(Graphs[0], edge[0]);
+                connection.Add(Graphs[1], edge[1]);               
             }
+
+            return connection;
         }
     }
 }

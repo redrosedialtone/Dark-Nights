@@ -62,20 +62,22 @@ namespace DarkNights
                             {
                                 float alpha = 1.0f - (length / drawNodesRadius) * 0.5f;
                                 var color = Color.White;
-                                float thickness = 4.5f;
+                                float thickness = 3.5f;
 
                                 if (curCluster.Contains(neighbour.Coordinates))
                                 {
-                                    if (cluster.Depth == curCluster.Depth) color = Color.Yellow;
-                                    else { color = Color.Green; thickness = 2.5f; }
+                                    if (cluster.Contains(neighbour.Coordinates)) color = Color.Green;
+                                    else color = Color.Red;
+                                    if (cluster.Depth != curCluster.Depth) thickness = 2.5f;
 
                                 }
                                 else
                                 {
-                                    if (cluster.Depth == curCluster.Depth) color = Color.Blue;
-                                    else { color = Color.Green; thickness = 2.5f; }
+                                    if (cluster.Contains(neighbour.Coordinates)) color = Color.Blue;
+                                    else color = Color.Red;
+                                    if (cluster.Depth != curCluster.Depth) thickness = 2.5f;
                                 }
-                                DrawUtils.DrawLineToWorld(node.Coordinates, neighbour.Coordinates, Color.Multiply(color, alpha), thickness);
+                                DrawUtils.DrawLineToWorld(Coordinates.Centre(node.Coordinates), Coordinates.Centre(neighbour.Coordinates), Color.Multiply(color, alpha), thickness);
                             }
                         }
                     }
@@ -138,11 +140,11 @@ namespace DarkNights
                 int level = 1;
                 if (level >= 1)
                 {
-                    Cluster parent = NavSys.Get.Cluster(pos, 1);
+                    Cluster parent = NavSys.Get.Cluster(pos, level);
                     if (parent == null) return;
 
                     int regionIndex = 0;
-                    foreach (var graph in parent.GetGraphs)
+                    foreach (var graph in parent.GetGraph)
                     {
                         Color color = ColorSelector.DebugColor(regionIndex);
                         DrawGraph(graph, new Color(color, 0.1f), regionIndex);
@@ -154,7 +156,7 @@ namespace DarkNights
                     Cluster cluster = NavSys.Get.Cluster(pos, 0);
                     if (cluster == null) return;
                     int regionIndex = 0;
-                    foreach (var region in cluster.GetGraphs)
+                    foreach (var region in cluster.GetGraph)
                     {
                         Color color = ColorSelector.DebugColor(regionIndex);
                         DrawGraph(region, new Color(color, 0.1f), regionIndex);
@@ -174,16 +176,20 @@ namespace DarkNights
             }
             if (DrawRegionEdges)
             {
-                if (graph.Edges == null) return;
+                if (graph.Connections == null) return;
 
-                foreach (var edge in graph.Edges)
+                foreach (var connection in graph.Connections)
                 {
-                    Vector2 A = Coordinates.Centre(edge.Linked[0]);
-                    Vector2 B = Coordinates.Centre(edge.Linked[1]);
-                    DrawUtils.DrawCircleToWorld(A, Defs.UnitPixelSize / 2, color);
-                    DrawUtils.DrawCircleToWorld(B, Defs.UnitPixelSize / 2, color);
-                    DrawUtils.DrawLineToWorld(A, B, color);
-                    DrawUtils.DrawText($"EXIT {index}", B, color, 0.5f);
+                    foreach (var edge in connection.AllEdges)
+                    {
+                        Vector2 A = Coordinates.Centre(edge.Node);
+                        //Vector2 B = Coordinates.Centre(connection.Linked.Tile);
+                        DrawUtils.DrawCircleToWorld(A, Defs.UnitPixelSize / 2, color);
+                        //DrawUtils.DrawCircleToWorld(B, Defs.UnitPixelSize / 2, color);
+                        //DrawUtils.DrawLineToWorld(A, B, color);
+                        DrawUtils.DrawText($"EXIT {index}", A, color, 0.5f);
+                    }
+
                 }
 
                 //foreach (var edge in graph.Edges)
