@@ -15,6 +15,7 @@ namespace DarkNights.WorldGeneration
         public int Seed { get; }
         public float Resolution { get; }
         IBiome[] activeBiomes;
+        public Dictionary<int, float> MyFertilityMap { get; private set; }
 
         public BiomeGenerator(IBiome[] activeBiomes, int Seed, float Resolution)
         {
@@ -24,7 +25,7 @@ namespace DarkNights.WorldGeneration
         }
         public void Generate(IEnumerable<Chunk> cells)
         {
-            var fertilityMap = FertilityMap(cells);
+            MyFertilityMap = FertilityMap(cells);
             var biomeMap = new Dictionary<int, IBiome>();
             var conditionMap = new Dictionary<int, BiomeConditions>();
 
@@ -34,7 +35,7 @@ namespace DarkNights.WorldGeneration
                 SimplePriorityQueue<IBiome> weightedList = new SimplePriorityQueue<IBiome>();
                 BiomeConditions conditions = new BiomeConditions()
                 {
-                    FerilityGraph = fertilityMap[cell.GetHashCode()]
+                    FerilityGraph = MyFertilityMap[cell.GetHashCode()]
                 };
                 conditionMap.Add(cell.GetHashCode(), conditions);
                 foreach (IBiome biome in activeBiomes)

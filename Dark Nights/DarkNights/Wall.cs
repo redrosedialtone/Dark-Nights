@@ -18,16 +18,4 @@ namespace DarkNights
             Node = new ImpassableNode(Coordinates);
         }
     }
-    public class Tree : INavNode
-    {
-        public PassabilityFlags Passability => PassabilityFlags.Impassable;
-        public Vector2 Position => Coordinates;
-        public Coordinates Coordinates { get; set; }
-        public float Cost => 1.0f;
-
-        public Tree(Coordinates Coordinates)
-        {
-            this.Coordinates = Coordinates;
-        }
-    }
 }

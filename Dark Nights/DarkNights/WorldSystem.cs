@@ -33,7 +33,7 @@ namespace DarkNights
         {
             log.Info("> ...");
             instance = this;
-            World = new World(0, 14, 14);
+            World = new World("test".GetHashCode(), 14, 14);
             World.GenerateChunks();
  
             ApplicationController.Get.Initiate(this);
@@ -47,7 +47,7 @@ namespace DarkNights
             //gizmo.DrawChunks = true;
             gizmo.DrawTiles = true;
             gizmo.DrawChunksUnderMouse = true;
-            //gizmo.drawNoise = true;
+            gizmo.drawNoise = true;
 
             World.GenerateBiomeData();
         }
@@ -191,14 +191,17 @@ namespace DarkNights
                 int minY = 0 - WorldSystem.Get.World.Minimum.Y;
                 foreach (var chunk in WorldSystem.Get.World.Chunks())
                 {
-                    float val = WorldSystem.Get.World.FertilityMap[chunk.ChunkCoordinates.X + minX, chunk.ChunkCoordinates.Y+minY];
-                    float grad = 1.0f / 1.0f * (val);
-                    var colour = Color.Lerp(Color.Transparent, Color.White, grad);
-                    DrawUtils.DrawRectangleToWorld(chunk.Origin,
-                        Defs.UnitPixelSize * World.CHUNK_SIZE,
-                        Defs.UnitPixelSize * World.CHUNK_SIZE,
-                        colour);
-                    i++;
+                    float val;
+                    if (WorldSystem.Get.World.FertilityMap.TryGetValue(chunk.GetHashCode(), out val))
+                    {
+                        float grad = 1.0f / 1.0f * (val);
+                        var colour = Color.Lerp(Color.Transparent, Color.White, grad);
+                        DrawUtils.DrawRectangleToWorld(chunk.Origin,
+                            Defs.UnitPixelSize * World.CHUNK_SIZE,
+                            Defs.UnitPixelSize * World.CHUNK_SIZE,
+                            colour);
+                        i++;
+                    }
                 }
             }
         }

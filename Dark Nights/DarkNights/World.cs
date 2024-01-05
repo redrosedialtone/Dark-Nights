@@ -21,9 +21,9 @@ namespace DarkNights
         #endregion
 
         #region Biome Data
-        public List<INavNode> NavNodes = new List<INavNode>();
+        public List<IWorldEntity> WorldEntities = new List<IWorldEntity>();
         public Action<Tree> OnTreeAdded;
-        public float[,] FertilityMap { get; private set; }
+        public Dictionary<int, float> FertilityMap { get; private set; }
 
         private List<IBiome> biomes = new List<IBiome>();
         private BiomeGenerator biomeGenerator;
@@ -50,12 +50,14 @@ namespace DarkNights
 
             biomes.Add(new TemperateGrasslands());
             biomes.Add(new TemperateWoods());
+            biomes.Add(new TemperateWoods(0.1f, 0.7f));
             biomeGenerator = new BiomeGenerator(biomes.ToArray(), seed, CHUNK_SIZE);
         }
 
         public void GenerateBiomeData()
         {
             biomeGenerator.Generate(Chunks());
+            FertilityMap = biomeGenerator.MyFertilityMap;
         }
 
         public void GenerateChunks()
@@ -81,9 +83,8 @@ namespace DarkNights
         public void AddTree(Coordinates Coordinates)
         {
             Tree tree = new Tree(Coordinates);
-            NavNodes.Add(tree);
+            WorldEntities.Add(tree);
             OnTreeAdded?.Invoke(tree);
-            NavigationSystem.Get.AddNavNode(tree);
         }
         public Chunk ChunkUnsf(Coordinates Coordinates)
         {

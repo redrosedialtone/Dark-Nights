@@ -19,10 +19,9 @@ namespace DarkNights.WorldGeneration
         public float RainfallGraph;
         public float ElevationGraph;
     }
-
     public class TemperateGrasslands : IBiome
     {
-        private float Fertility = 0.5f;
+        private float Fertility = 0.2f;
 
         public void Generate(Chunk cell)
         {
@@ -38,8 +37,13 @@ namespace DarkNights.WorldGeneration
 
     public class TemperateWoods : IBiome
     {
-        private float Fertility = 0.6f;
-        private float TreeChance = 0.1f;
+        private float Fertility;
+        private float TreeChance;
+        public TemperateWoods(float TreeRate = 0.05f, float Fertility = 0.5f)
+        {
+            this.TreeChance = TreeRate;
+            this.Fertility = Fertility;
+        }
         public void Generate(Chunk cell)
         {
             WorldSystem.log.Debug($"{cell} I am green and woody");
