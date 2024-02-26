@@ -102,6 +102,15 @@ namespace DarkNights
             return pair;
         }
 
+        public GraphConnection Pair(IGraph lowSource, IGraph highSource, int Depth)
+        {
+            this.Depth = Depth;
+            GraphConnection pair = new GraphConnection(lowSource, lowSource == Cast ? Source : Cast, Depth);
+            pair.Add(interEdgeData);
+            pair.PreGraph();
+            return pair;
+        }
+
         public void Add(IGraph graph, Coordinates[] tiles)
         {
             var symmetryIndex = tiles.Length / 2;
@@ -224,21 +233,28 @@ namespace DarkNights
 
     public class NavPath
     {
-        public Stack<Coordinates> TilePath = new Stack<Coordinates>();
+        public Stack<INavNode> nodePath;
+        public Stack<Coordinates> tilePath;
         public Stack<Coordinates> lastPath = new Stack<Coordinates>();
-        public int Count => TilePath.Count;
+        public int Count => tilePath == null ? nodePath.Count : tilePath.Count;
 
         public Action Completed;
 
         public Coordinates Next()
         {
-            var ret = TilePath.Pop();
-            lastPath.Push(ret);
-            if (TilePath.Count == 0)
+            Coordinates next;
+            if (tilePath != null)
             {
-                Completed?.Invoke();
+                next = tilePath.Pop();
+                if (tilePath.Count == 0) Done();
             }
-            return ret;
+            else
+            {
+                next = nodePath.Pop().Coordinates;
+                if (nodePath.Count == 0) Done();
+            }
+            lastPath.Push(next);
+            return next;
         }
 
         public void Done()
@@ -445,8 +461,7 @@ namespace DarkNights
 
         private void GraphExits(IGraph source, IGraph[] edges)
         {
-            List<IGraph> graphExits = new List<IGraph>();
-            Dictionary<int, GraphEdgeBuilder> edgeBuilders = new Dictionary<int, GraphEdgeBuilder>();
+            Dictionary<IGraph, List<GraphConnection>> graphExits = new Dictionary<IGraph, List<GraphConnection>>();
 
             foreach (var subGraph in source.GraphChildren)
             {
@@ -456,45 +471,64 @@ namespace DarkNights
                     if (exit == source) continue;
                     if (!(edges.Contains(exit))) continue;
 
-                    if (graphExits.Contains(exit))
+                    if (graphExits.TryGetValue(exit, out List<GraphConnection> val))
                     {
-                        var graphEdge = edgeBuilders[exit.GetHashCode()];
-                        foreach (var data in connection.EdgeData(subGraph))
-                        {
-                            graphEdge.AddTiles(source, data.Tiles);
-
-                        }
-                        foreach (var data in connection.EdgeData(connection.Cast))
-                        {
-                            graphEdge.AddTiles(exit, data.Tiles);
-                        }
-
+                        val.Add(connection);
                     }
                     else
                     {
-                        GraphEdgeBuilder graphEdge = new GraphEdgeBuilder(new IGraph[] { source, exit });
-
-                        foreach (var data in connection.EdgeData(subGraph))
-                        {
-                            graphEdge.AddTiles(source, data.Tiles);
-
-                        }
-                        foreach (var data in connection.EdgeData(connection.Cast))
-                        {
-                            graphEdge.AddTiles(exit, data.Tiles);
-                        }
-
-                        edgeBuilders.Add(exit.GetHashCode(), graphEdge);
-                        graphExits.Add(exit);
+                        List<GraphConnection> connections = new List<GraphConnection>() { connection };
+                        graphExits.Add(exit, connections);
                     }
+
+                    //if (graphExits.Contains(exit))
+                    //{
+                    //    var graphEdge = edgeBuilders[exit.GetHashCode()];
+                    //    foreach (var data in connection.EdgeData(subGraph))
+                    //    {
+                    //        graphEdge.AddTiles(source, data.Tiles);
+
+                    //    }
+                    //    foreach (var data in connection.EdgeData(connection.Cast))
+                    //    {
+                    //        graphEdge.AddTiles(exit, data.Tiles);
+                    //    }
+
+                    //}
+                    //else
+                    //{
+                    //    GraphEdgeBuilder graphEdge = new GraphEdgeBuilder(new IGraph[] { source, exit });
+
+                    //    foreach (var data in connection.EdgeData(subGraph))
+                    //    {
+                    //        graphEdge.AddTiles(source, data.Tiles);
+
+                    //    }
+                    //    foreach (var data in connection.EdgeData(connection.Cast))
+                    //    {
+                    //        graphEdge.AddTiles(exit, data.Tiles);
+                    //    }
+
+                    //    edgeBuilders.Add(exit.GetHashCode(), graphEdge);
+                    //    graphExits.Add(exit);
+                    //}
                 }
             }
 
-            foreach (var builder in edgeBuilders)
+            foreach (var kv in graphExits)
             {
-                var graphEdges = builder.Value.Build();
-                source.UpdateEdge(builder.Value.Graphs[1], graphEdges);
+                foreach (var connection in kv.Value)
+                {
+                    source.UpdateGraphEdge(source,kv.Key, connection);
+                }
+                
             }
+
+            //foreach (var builder in edgeBuilders)
+            //{
+            //    var graphEdges = builder.Value.Build();
+            //    source.UpdateEdge(builder.Value.Graphs[1], graphEdges);
+            //}
         }
     }
 

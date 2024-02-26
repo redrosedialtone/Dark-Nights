@@ -96,10 +96,21 @@ namespace DarkNights
                 var character = PlayerController.Get.PlayerCharacter.Movement;
                 if (character.MovementPath != null)
                 {
-                    foreach (var node in character.MovementPath.TilePath)
+                    if (character.MovementPath.tilePath != null)
                     {
-                        DrawUtils.DrawRectangleToWorld(node, Defs.UnitPixelSize, Defs.UnitPixelSize, node == character.nextNode ? nextPathColor : activePathColor);
+                        foreach (var node in character.MovementPath.tilePath)
+                        {
+                            DrawUtils.DrawRectangleToWorld(node, Defs.UnitPixelSize, Defs.UnitPixelSize, node == character.nextNode ? nextPathColor : activePathColor);
+                        }
                     }
+                    else
+                    {
+                        foreach (var node in character.MovementPath.nodePath)
+                        {
+                            DrawUtils.DrawRectangleToWorld(node.Coordinates, Defs.UnitPixelSize, Defs.UnitPixelSize, node.Coordinates == character.nextNode ? nextPathColor : activePathColor);
+                        }
+                    }
+
                     foreach (var inactiveNode in character.MovementPath.lastPath)
                     {
                         DrawUtils.DrawRectangleToWorld(inactiveNode, Defs.UnitPixelSize, Defs.UnitPixelSize, inactivePathColor);

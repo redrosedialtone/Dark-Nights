@@ -14,6 +14,7 @@ using System.Linq;
 using System.Reflection.Emit;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using static Microsoft.Xna.Framework.Graphics.SpriteFont;
@@ -136,8 +137,8 @@ namespace DarkNights
 
         public static NavPath Path(Vector2 A, Vector2 B)
         {
-            //instance.instance_PathHierarchal(A, B);
-            return instance.instance_BasicAStar(A, B);
+            return instance.instance_PathHierarchal(A, B);
+            //return instance.instance_BasicAStar(A, B);
         }
 
         private NavPath instance_BasicAStar(Vector2 A, Vector2 B)
@@ -160,38 +161,86 @@ namespace DarkNights
 
             var heuristic = new AStarTiles(A, B);
             //path.Completed += () => { ClearPathNode(startNode); ClearPathNode(endNode); };
-            path.TilePath = heuristic.Path();
+            path.tilePath = heuristic.Path();
             return path;
         }
 
-        private void instance_PathHierarchal(Vector2 A, Vector2 B)
+        private NavPath instance_PathHierarchal(Vector2 A, Vector2 B)
         {
             Coordinates start = A;
             Coordinates goal = B;
 
-            int commonParent = -1;
+            log.Debug($"Generating Hierchal Path from {start} to {goal}..");
 
-            for (int level = clusters.Length-1; level >= 0; level--)
+            IGraph[] originGraph = new IGraph[clusters.Length];
+            IGraph[] destinationGraph = new IGraph[clusters.Length];
+
+            int depth = -1;
+
+            for (int level = 0; level < clusters.Length; level++)
             {
-                IGraph layerStart = Graph(start, level);
-                IGraph layerGoal = Graph(goal, level);
-
-                if (layerStart == layerGoal)
+                originGraph[level] = Graph(start, level);
+                destinationGraph[level] = Graph(goal, level);
+                if(originGraph == null || destinationGraph == null)
                 {
-                    commonParent = level;
+                    log.Warn("No Graphs Found?");
+                    return null;
+                }
+
+                if (originGraph[level] == destinationGraph[level]) depth = level;
+            }
+
+            if (depth != -1) { log.Info($"Common parent @ level {depth}"); }
+            else {  depth = clusters.Length; log.Info($"No common parent found. {depth}"); }
+
+            Stack<INavNode>[] abstractPath = new Stack<INavNode>[depth];
+            NavPath finalPath = new NavPath();
+
+            while (depth > 0)
+            {
+                var origin = originGraph[depth-1];
+                var destination = destinationGraph[depth-1];
+
+                PathNode startNode = new PathNode(start, origin.GraphEdgeNodes);
+                finalPath.Completed += startNode.Clear;
+
+
+                // High-level abstract path
+                if (depth == abstractPath.Length)
+                {
+                    PathNode endNode = new PathNode(goal, destination.GraphEdgeNodes);
+                    finalPath.Completed += endNode.Clear;
+
+                    var heuristic = new AStarHierarchal();
+                    abstractPath[depth - 1] = heuristic.Path(startNode, endNode);
+                }
+                // Low-level abstract path
+                else
+                {
+                    var highLevelPath = abstractPath[depth];
+                    INavNode prevNode = startNode;
+                    while (highLevelPath.Count > 0)
+                    {
+                        var nextNode = highLevelPath.Pop();
+                        var heuristic = new AStarHierarchal();
+                        abstractPath[depth - 1] = heuristic.Path(prevNode, nextNode);
+                        prevNode = nextNode;
+                    }
+                }
+                depth--;
+            }
+
+            for (int i = abstractPath.Length-1; i >= 0; i--)
+            {
+                var path = abstractPath[i];
+                var prev = start;
+                foreach (var cur in path)
+                {
+                    log.Debug($"Navigating from {prev} to {cur.Coordinates} @ depth {i+1}");
+                    prev = cur.Coordinates;
                 }
             }
-
-            if (commonParent != -1)
-            {
-                log.Info($"Common parent @ level {commonParent}");
-            }
-            else
-            {
-
-            }
-
-            
+            return null;
         }
 
         private IEnumerable<Coordinates> DrawLine(Coordinates A, Coordinates B)
@@ -233,7 +282,6 @@ namespace DarkNights
                     NavNodeAdded(Node);
                     log.Debug($"Node added to cluster @ {cluster.ClusterCoordinates}");
                 }
-
             }
         }
 
@@ -589,6 +637,7 @@ namespace DarkNights
         void PreGraph();
         void BuildGraph();
         void UpdateEdge(IGraph Source, GraphConnection paired);
+        void UpdateGraphEdge(IGraph Source, IGraph Cast, GraphConnection match);
         GraphConnection Connection(IGraph cast);
     }
 
@@ -638,6 +687,30 @@ namespace DarkNights
             {
                 List<GraphConnection> newConnections = connections.ToList();
                 newConnections.Add(match.Pair(this));
+                connections = newConnections.ToArray();
+            }
+        }
+
+        public void UpdateGraphEdge(IGraph lowLevel, IGraph Cast, GraphConnection subConnection)
+        {
+            if (subConnection == null)
+            {
+                var connection = Connection(Cast);
+                if (connection != null)
+                {
+                    List<GraphConnection> newConnections = connections.ToList();
+                    newConnections.Remove(connection);
+                    connections = newConnections.ToArray();
+                }
+            }
+            else if (connections == null)
+            {
+                connections = new GraphConnection[] { subConnection.Pair(lowLevel,this,this.Depth) };
+            }
+            else
+            {
+                List<GraphConnection> newConnections = connections.ToList();
+                newConnections.Add(subConnection.Pair(lowLevel, this, this.Depth));
                 connections = newConnections.ToArray();
             }
         }

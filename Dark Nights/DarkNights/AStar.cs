@@ -1,5 +1,6 @@
 ﻿using Priority_Queue;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -123,21 +124,229 @@ namespace DarkNights
     public class AStarHierarchal
     {
         private NLog.Logger log => NavSys.log;
-        private readonly SimplePriorityQueue<IGraph> OpenList = new SimplePriorityQueue<IGraph>();
-        private readonly List<IGraph> ClosedList = new List<IGraph>();
-        private readonly Dictionary<IGraph, IGraph> Trace = new Dictionary<IGraph, IGraph>();
 
-        private readonly Dictionary<IGraph, float> Weights = new Dictionary<IGraph, float>();
-        private readonly Dictionary<IGraph, float> HeuristicScores = new Dictionary<IGraph, float>();
-
-        private readonly Coordinates Start;
-        private readonly Coordinates End;
-        private IGraph CurrentGraph;
-
-        public AStarHierarchal(Coordinates Start, Coordinates End)
+        public Stack<IGraph> Path(IGraph Start, IGraph End)
         {
-            this.Start = Start;
-            this.End = End;
+            log.Debug("Generating Hierarchal Heuristic Path...");
+            PriorityQueue<IGraph, float> OpenList = new PriorityQueue<IGraph, float>();
+            List<IGraph> ClosedList = new List<IGraph>();
+            Dictionary<IGraph, IGraph> Trace = new Dictionary<IGraph, IGraph>();
+            Dictionary<IGraph, float> Weights = new Dictionary<IGraph, float>();
+            Weights[Start] = 0;
+            IGraph current = Start;
+            bool targetReached = false;
+            int nodesTraversed = 0;
+
+            OpenList.Enqueue(Start, HeuristicWeight(Start, End));
+            while (OpenList.Count > 0)
+            {
+                current = OpenList.Dequeue();
+                ClosedList.Add(current);
+                nodesTraversed++;
+
+                // We did it!
+                if (current == End)
+                {
+                    log.Debug("Located Path Target");
+                    targetReached = true;
+                    break;
+                }
+
+                foreach (var edge in current.Connections)
+                {
+                    var neighbour = edge.Cast;
+                    if (ClosedList.Contains(neighbour)) continue;
+                    float weight = Weights[current] + HeuristicWeight(neighbour, current);
+                    bool alreadyOpen = false;
+                    foreach (var oLNode in OpenList.UnorderedItems)
+                    {
+                        if (oLNode.Element == neighbour) alreadyOpen = true;
+                    }
+                    if (alreadyOpen && weight >= Weights[current]) continue;
+
+                    if (Trace.ContainsKey(neighbour) == false) Trace.Add(neighbour, current);
+                    else Trace[neighbour] = current;
+                    if (Weights.ContainsKey(neighbour) == false) Weights.Add(neighbour, weight);
+                    else Weights[neighbour] = weight;
+
+                    float heuristicWeight = weight + HeuristicWeight(neighbour, End);
+
+                    if (!alreadyOpen)
+                    {
+                        OpenList.Enqueue(neighbour, heuristicWeight);
+                    }
+                }
+            }
+
+            if (targetReached)
+            {
+                log.Debug($"Path Located after {nodesTraversed} nodes.");
+                Stack<IGraph> Path = new Stack<IGraph>();
+                do
+                {
+                    Path.Push(current);
+                    current = Trace[current];
+                } while (current != Start);
+                return Path;
+            }
+            return null;
+        }
+
+            public Stack<Cluster> Path(Cluster Start, Cluster End)
+        {
+            log.Debug("Generating Hierarchal Heuristic Path...");
+            PriorityQueue<Cluster, float> OpenList = new PriorityQueue<Cluster, float>();
+            List<Cluster> ClosedList = new List<Cluster>();
+            Dictionary<Cluster, Cluster> Trace = new Dictionary<Cluster, Cluster>();
+            Dictionary<Cluster, float> Weights = new Dictionary<Cluster, float>();
+            Weights[Start] = 0;
+            Cluster current = Start;
+            bool targetReached = false;
+            int nodesTraversed = 0;
+
+            OpenList.Enqueue(Start, HeuristicWeight(Start, End));
+
+            while (OpenList.Count > 0)
+            {
+                current = OpenList.Dequeue();
+                ClosedList.Add(current);
+                nodesTraversed++;
+
+                // We did it!
+                if (current == End)
+                {
+                    log.Debug("Located Path Target");
+                    targetReached = true;
+                    break;
+                }
+
+                foreach (var neighbour in NavSys.Get.ClusterNeighbours(current))
+                {
+                    if (ClosedList.Contains(neighbour)) continue;
+                    float weight = Weights[current] + HeuristicWeight(neighbour, current);
+                    bool alreadyOpen = false;
+                    foreach (var oLNode in OpenList.UnorderedItems)
+                    {
+                        if (oLNode.Element == neighbour) alreadyOpen = true;
+                    }
+                    if (alreadyOpen && weight >= Weights[current]) continue;
+
+                    if (Trace.ContainsKey(neighbour) == false) Trace.Add(neighbour, current);
+                    else Trace[neighbour] = current;
+                    if (Weights.ContainsKey(neighbour) == false) Weights.Add(neighbour, weight);
+                    else Weights[neighbour] = weight;
+
+                    float heuristicWeight = weight + HeuristicWeight(neighbour, End);
+
+                    if (!alreadyOpen)
+                    {
+                        OpenList.Enqueue(neighbour, heuristicWeight);
+                    }
+                }
+            }
+
+            if (targetReached)
+            {
+                log.Debug($"Path Located after {nodesTraversed} nodes.");
+                Stack<Cluster> Path = new Stack<Cluster>();
+                do
+                {
+                    Path.Push(current);
+                    current = Trace[current];
+                } while (current != Start);
+                return Path;
+            }
+            return null;
+        }
+
+        public Stack<INavNode> Path(INavNode Start, INavNode End)
+        {
+            log.Debug("Generating Hierarchal Heuristic Path...");
+
+            PriorityQueue<INavNode, float> OpenList = new PriorityQueue<INavNode, float>();
+            List<INavNode> ClosedList = new List<INavNode>();
+            Dictionary<INavNode, INavNode> Trace = new Dictionary<INavNode, INavNode>();
+            Dictionary<INavNode, float> Weights = new Dictionary<INavNode, float>();
+            Weights[Start] = 0;
+            INavNode current = Start;
+            bool targetReached = false;
+            int nodesTraversed = 0;
+
+            OpenList.Enqueue(Start,HeuristicWeight(Start, End));
+
+            while (OpenList.Count > 0)
+            {
+                current = OpenList.Dequeue();
+                ClosedList.Add(current);
+                nodesTraversed++;
+
+                // We did it!
+                if (End.Neighbours.Contains(current))
+                {
+                    log.Debug("Located Path Target");
+                    targetReached = true;
+                    break;
+                }
+
+                foreach (var node in current.Neighbours)
+                {
+                    if (ClosedList.Contains(node)) continue;
+                    float weight = Weights[current] + HeuristicWeight(node, current);
+                    bool alreadyOpen = false;
+                    foreach (var oLNode in OpenList.UnorderedItems)
+                    {
+                        if (oLNode.Element == node) alreadyOpen = true;
+                    }
+                    if (alreadyOpen && weight >= Weights[current]) continue;
+
+                    if (Trace.ContainsKey(node) == false) Trace.Add(node, current);
+                    else Trace[node] = current;
+                    if (Weights.ContainsKey(node) == false) Weights.Add(node, weight);
+                    else Weights[node] = weight;
+
+                    float heuristicWeight = weight + HeuristicWeight(node, End);
+
+                    if (!alreadyOpen)
+                    {
+                        OpenList.Enqueue(node, heuristicWeight);
+                    }
+                }
+            }
+
+            if (targetReached)
+            {
+                log.Debug($"Path Located after {nodesTraversed} nodes.");
+                Stack<INavNode> Path = new Stack<INavNode>();
+                Path.Push(End);
+                do
+                {
+                    Path.Push(current);
+                    current = Trace[current];
+                } while (current != Start);
+                return Path;
+            }
+            return null;
+        }
+
+        private float HeuristicWeight(INavNode Start, INavNode End)
+        {
+            return MathF.Sqrt(
+                MathF.Pow(Start.Coordinates.X - End.Coordinates.X, 2) +
+                MathF.Pow(Start.Coordinates.Y - End.Coordinates.Y, 2));
+        }
+
+        private float HeuristicWeight(IGraph Start, IGraph End)
+        {
+            return MathF.Sqrt(
+                MathF.Pow(Start.Origin.X - End.Origin.X, 2) +
+                MathF.Pow(Start.Origin.Y - End.Origin.Y, 2));
+        }
+
+        private float HeuristicWeight(Cluster Start, Cluster End)
+        {
+            return MathF.Sqrt(
+                MathF.Pow(Start.Origin.X - End.Origin.X, 2) +
+                MathF.Pow(Start.Origin.Y - End.Origin.Y, 2));
         }
     }
 }
