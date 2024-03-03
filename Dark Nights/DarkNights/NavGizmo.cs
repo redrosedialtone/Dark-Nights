@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
+using System.Reflection;
 
 namespace DarkNights
 {
@@ -23,7 +24,7 @@ namespace DarkNights
 
         public bool DrawClusters { get; set; }
 
-        public bool DrawRegions { get; set; }
+        public bool DrawInterEdges { get; set; }
         public bool DrawRegionBounds { get; set; }
         public bool DrawRegionEdges { get; set; }
 
@@ -47,11 +48,50 @@ namespace DarkNights
             {
                 Vector2 pos = Camera.ScreenToWorld(Cursor.Position);
 
-                var curCluster = NavSys.Get.Cluster(pos, 1);
+                var curCluster = NavSys.Get.Cluster(pos, 0);
 
                 foreach (var cluster in NavSys.Get.ClustersInRadius(pos, drawNodesRadius))
                 {
-                    foreach (var node in cluster.AllNodes)
+                    Color debugColor;
+                    for (int gIndx = 0; gIndx < cluster.InterEdgeNodes.Length; gIndx++)
+                    {
+                        debugColor = ColorSelector.DebugColor(gIndx);
+                        var group = cluster.InterEdgeNodes[gIndx];
+                        if (group == null) continue;
+                        for (int nIndx = 0; nIndx < group.Length; nIndx++)
+                        {
+                            var node = group[nIndx];
+                            float length = Vector2.Distance(pos, node.Coordinates);
+                            if (length > drawNodesRadius) continue;
+                            DrawNode(node, 1.0f - (length / drawNodesRadius));
+                            if (node.Neighbours != null)
+                            {
+                                foreach (var neighbour in node.Neighbours)
+                                {
+                                    var drawColor = Color.White;
+                                    if (neighbour == null) continue;
+                                    float alpha = 1.0f - (length / drawNodesRadius) * 0.5f;
+                                    float thickness = 3.5f;
+
+                                    if (curCluster.Contains(neighbour.Coordinates))
+                                    {
+                                        if (cluster.Contains(neighbour.Coordinates)) { drawColor = debugColor; alpha *= 2.0f; }
+                                        else drawColor = Color.Red;
+                                        if (cluster.Depth != curCluster.Depth) thickness = 2.5f;
+
+                                    }
+                                    else
+                                    {
+                                        if (cluster.Contains(neighbour.Coordinates)) drawColor = Color.Blue;
+                                        else drawColor = Color.Red;
+                                        if (cluster.Depth != curCluster.Depth) thickness = 2.5f;
+                                    }
+                                    DrawUtils.DrawLineToWorld(Coordinates.Centre(node.Coordinates), Coordinates.Centre(neighbour.Coordinates), Color.Multiply(drawColor, alpha), thickness);
+                                }
+                            }
+                        }
+                    }
+                    foreach (var node in cluster.Nodes)
                     {
                         float length = Vector2.Distance(pos, node.Coordinates);
                         if (length > drawNodesRadius) continue;
@@ -60,6 +100,7 @@ namespace DarkNights
                         {
                             foreach (var neighbour in node.Neighbours)
                             {
+                                if (neighbour == null) continue;
                                 float alpha = 1.0f - (length / drawNodesRadius) * 0.5f;
                                 var color = Color.White;
                                 float thickness = 3.5f;
@@ -103,9 +144,9 @@ namespace DarkNights
                             DrawUtils.DrawRectangleToWorld(node, Defs.UnitPixelSize, Defs.UnitPixelSize, node == character.nextNode ? nextPathColor : activePathColor);
                         }
                     }
-                    else
+                    else if(character.MovementPath.abstractPath != null)
                     {
-                        foreach (var node in character.MovementPath.nodePath)
+                        foreach (var node in character.MovementPath.abstractPath)
                         {
                             DrawUtils.DrawRectangleToWorld(node.Coordinates, Defs.UnitPixelSize, Defs.UnitPixelSize, node.Coordinates == character.nextNode ? nextPathColor : activePathColor);
                         }
@@ -145,83 +186,9 @@ namespace DarkNights
                     }
                 }
             }
-            if (DrawRegions)
+            if (DrawInterEdges)
             {
-                Vector2 pos = Camera.ScreenToWorld(Cursor.Position);
-                int level = 1;
-                if (level >= 1)
-                {
-                    Cluster parent = NavSys.Get.Cluster(pos, level);
-                    if (parent == null) return;
 
-                    int regionIndex = 0;
-                    foreach (var graph in parent.GetGraph)
-                    {
-                        Color color = ColorSelector.DebugColor(regionIndex);
-                        DrawGraph(graph, new Color(color, 0.1f), regionIndex);
-                        regionIndex++;
-                    }
-                }
-                else
-                {
-                    Cluster cluster = NavSys.Get.Cluster(pos, 0);
-                    if (cluster == null) return;
-                    int regionIndex = 0;
-                    foreach (var region in cluster.GetGraph)
-                    {
-                        Color color = ColorSelector.DebugColor(regionIndex);
-                        DrawGraph(region, new Color(color, 0.1f), regionIndex);
-                        regionIndex++;
-                    }
-                }
-
-
-            }
-        }
-
-        private void DrawGraph(IGraph graph, Color color, int index)
-        {
-            foreach (var tile in graph.Area)
-            {
-                DrawUtils.DrawRectangleToWorld(tile, Defs.UnitPixelSize, Defs.UnitPixelSize, color);
-            }
-            if (DrawRegionEdges)
-            {
-                if (graph.Connections == null) return;
-
-                foreach (var connection in graph.Connections)
-                {
-                    foreach (var edge in connection.AllEdges)
-                    {
-                        Vector2 A = Coordinates.Centre(edge.Node);
-                        //Vector2 B = Coordinates.Centre(connection.Linked.Tile);
-                        DrawUtils.DrawCircleToWorld(A, Defs.UnitPixelSize / 2, color);
-                        //DrawUtils.DrawCircleToWorld(B, Defs.UnitPixelSize / 2, color);
-                        //DrawUtils.DrawLineToWorld(A, B, color);
-                        DrawUtils.DrawText($"EXIT {index}", A, color, 0.5f);
-                    }
-
-                }
-
-                //foreach (var edge in graph.Edges)
-                //{
-                //    if (edge.Edges == null) return;
-
-                //    foreach (var exit in edge.Edges)
-                //    {
-                //        Vector2 A = Coordinates.Centre(exit.From);
-                //        Vector2 B = Coordinates.Centre(exit.To);
-                //        DrawUtils.DrawCircleToWorld(A, Defs.UnitPixelSize / 2, color);
-                //        DrawUtils.DrawCircleToWorld(B, Defs.UnitPixelSize / 2, color);
-                //        DrawUtils.DrawLineToWorld(A, B, color);
-                //        DrawUtils.DrawText($"EXIT {index}", B, color, 0.5f);
-                //    }
-
-
-
-                //}
-                //var tile = graph.Area.FirstOrDefault();
-                //DrawUtils.DrawText($"R{index}", tile, Color.White, 1.0f);
             }
         }
 

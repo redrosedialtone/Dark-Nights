@@ -45,13 +45,16 @@ namespace DarkNights
 
         public void MoveTo(Vector2 Target)
         {
-            this.MovementTarget = Target;
-            MovementCompleted = false;
-            IsMoving = true;
-
-            if (MovementPath != null) MovementPath.Done();
+            if (MovementPath != null) MovementPath.Finish();
 
             MovementPath = NavSys.Path(Position, Target);
+
+            if (MovementPath != null)
+            {
+                this.MovementTarget = Target;
+                MovementCompleted = false;
+                IsMoving = true;
+            }
         }
 
         public void Move(float delta)
@@ -82,11 +85,11 @@ namespace DarkNights
                 if (nextNode != null) return nextNode;
                 if (MovementPath != null)
                 {
-                    if (MovementPath.Count == 0)
+                    if (MovementPath.Completed)
                     {
                         return MovementTarget;
                     }
-                    nextNode = MovementPath.Next();
+                    nextNode = MovementPath.Next(Coordinates);
                     return nextNode;
                 }
                 return null;
