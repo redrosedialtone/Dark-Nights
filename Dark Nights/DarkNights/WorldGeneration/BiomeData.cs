@@ -39,7 +39,9 @@ namespace DarkNights.WorldGeneration
     {
         private float Fertility;
         private float TreeChance;
-        public TemperateWoods(float TreeRate = 0.05f, float Fertility = 0.5f)
+        private float ShrubChance = 0.05f;
+        private float SaplingChance = 0.04f;
+        public TemperateWoods(float TreeRate = 0.03f, float Fertility = 0.5f)
         {
             this.TreeChance = TreeRate;
             this.Fertility = Fertility;
@@ -47,15 +49,32 @@ namespace DarkNights.WorldGeneration
         public void Generate(Chunk cell)
         {
             WorldSystem.log.Debug($"{cell} I am green and woody");
-            var c = cell.Tiles();
-            Random rand = new Random(World.SEED);
-            foreach (var tile in c)
+            Random r = new Random(World.SEED);
+
+            IEntity[] trees = new IEntity[50];
+            int tIndx = 0;
+            foreach (var tile in cell.Tiles())
             {
-                if (rand.NextDouble() < TreeChance)
+                var chance = r.NextDouble();
+                if (chance <= TreeChance)
                 {
-                    WorldSystem.Get.World.AddTree(tile);
+                    trees[tIndx++] = new Tree(tile);
+
                 }
+                else if (chance <= SaplingChance)
+                {
+                    trees[tIndx++] = new Sapling(tile);
+                }
+                else if (chance <= ShrubChance)
+                {
+                    if(chance >= 0.015) trees[tIndx++] = new Shrub1(tile);
+                    else trees[tIndx++] = new Shrub2(tile);
+
+                }
+                if (tIndx >= 50) break;
             }
+
+            EntityController.Get.PlaceEntities(trees);
         }
 
         public float MatchConditions(BiomeConditions conditions)

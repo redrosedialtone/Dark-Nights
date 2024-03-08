@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Nebula;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,10 +15,26 @@ namespace DarkNights
         public Coordinates Min => Origin;
         public Coordinates Max => new(Origin.X + Size.X, Origin.Y + Size.Y);
 
+        public List<IEntity> Terrain { get; private set; } = new List<IEntity>();
+
         public Chunk(Coordinates Origin)
         {
             this.Origin = Origin;
         }
+
+        public void Draw()
+        {
+            foreach (var entity in Terrain)
+            {
+                SpriteBatchRenderer.Get.DrawSprite(entity.Sprite, entity.Position);
+            }
+        }
+
+        public void AddTerrain(IEntity entity)
+        {
+            Terrain.Add(entity);
+        }
+
 
         public IEnumerable<Coordinates> Tiles()
         {

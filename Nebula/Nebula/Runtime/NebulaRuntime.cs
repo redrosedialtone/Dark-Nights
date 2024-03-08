@@ -59,19 +59,21 @@ namespace Nebula.Main
                 throw new NullReferenceException();
             }
 
-            Controls = new IControl[6];
+            Controls = new IControl[7];
             Controls[0] = Graphics.Get;
             Controls[1] = new Interface();
             Controls[2] = Input.Get;
             Controls[3] = Resources.Get;
             Controls[4] = new Cursor();
             Controls[5] = new NebulaCamera();
+            Controls[6] = SpriteBatchRenderer.Get;
             Controls[0].Create(this);
             Controls[1].Create(this);
             Controls[2].Create(this);
             Controls[3].Create(this);
             Controls[4].Create(this);
             Controls[5].Create(this);
+            Controls[6].Create(this);
             foreach (var control in Controls)
             {
                 control.Initialise();
@@ -116,6 +118,11 @@ namespace Nebula.Main
             }
         }
 
+        public void PreDraw()
+        {
+            Graphics.Get.PreDraw();
+        }
+
         public void Draw(GameTime gameTime)
         {
             Time.Frame();
@@ -124,6 +131,12 @@ namespace Nebula.Main
                 control.Draw(gameTime);
             }
         }
+
+        public void PostDraw()
+        {
+            Graphics.Get.PostDraw();
+        }
+
         public void Run()
         {
             throw new NotImplementedException();

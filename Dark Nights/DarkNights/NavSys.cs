@@ -40,6 +40,10 @@ namespace DarkNights
         public Dictionary<int, Cluster>[] clusters = new Dictionary<int, Cluster>[1];
 
         public List<PathNode> temporaryNodes = new List<PathNode>();
+        private LinkedList<INavNode> dirtyNodes = new LinkedList<INavNode>();
+        private HashSet<Cluster> dirtyClusters = new HashSet<Cluster>();
+        private bool m_dirtyNodes = false;
+        private bool m_dirtyClusters = false;
 
         public override void Init()
         {
@@ -54,6 +58,34 @@ namespace DarkNights
         public override void Tick()
         {
             base.Tick();
+            if (m_dirtyClusters)
+            {
+                foreach (var cluster in dirtyClusters)
+                {
+                    cluster.RebuildGraph();
+                }
+                dirtyClusters.Clear();
+                m_dirtyClusters = false;
+            }
+            if (m_dirtyNodes)
+            {
+                LinkedList<Cluster> dirty = new LinkedList<Cluster>();
+                foreach (var node in dirtyNodes)
+                {
+                    Cluster cluster = Cluster(node.Coordinates);
+                    if (cluster != null)
+                    {
+                        cluster.AddNode(node, false);
+                        if ((node.Passability & PassabilityFlags.Impassable) != 0)
+                        {
+                            dirtyClusters.Add(cluster);
+                            m_dirtyClusters = true;
+                        }
+                    }
+                }
+                dirtyNodes.Clear();
+                m_dirtyNodes = false;
+            }
         }
 
         public override void OnInitialized()
@@ -103,6 +135,15 @@ namespace DarkNights
                 {
                     var cluster = kV.Value;
                     cluster.BuildSourceGraph();
+                }
+            }
+
+            for (int depth = 0; depth < clusters.Length; depth++)
+            {
+                foreach (var kV in clusters[depth])
+                {
+                    var cluster = kV.Value;
+                    cluster.BuildCastGraph();
                 }
             }
         }
@@ -223,36 +264,17 @@ namespace DarkNights
 
         public void AddNavNode(INavNode Node, int depth = 0)
         {
-            Cluster cluster = Cluster(Node.Coordinates, depth);
-            if (cluster != null)
-            {
-                if (cluster.AddNode(Node))
-                {
-                    NavNodeAdded(Node);
-                    log.Debug($"Node added to cluster @ {cluster.ClusterCoordinates}");
-                }
-            }
+            dirtyNodes.AddFirst(Node);
+            m_dirtyNodes = true;
         }
 
         public void AddNavNodes(IEnumerable<INavNode> Nodes, bool rebuild, int depth = 0)
         {
-            Dictionary<int, List<INavNode>> clusters = new Dictionary<int, List<INavNode>>();
             foreach (var node in Nodes)
             {
-                Cluster cluster = Cluster(node.Coordinates, depth);
-                if(cluster != null)
-                {
-                    if (clusters.ContainsKey(cluster.GetHashCode())) clusters[cluster.GetHashCode()].Add(node);
-                    else clusters[cluster.GetHashCode()] = new List<INavNode>() { node };
-                }
+                dirtyNodes.AddFirst(node);
             }
-
-            foreach (var kV in clusters)
-            {
-                var nodes = kV.Value;
-                var cluster = Cluster(nodes.First().Coordinates, depth);
-                cluster.AddNodes(nodes, rebuild);
-            }
+            m_dirtyNodes = true;
         }
 
         public void RemoveNode(INavNode Node)
@@ -589,9 +611,9 @@ namespace DarkNights
             this.Origin = Origin; this.Depth = Depth; this.Size = Size;
         }
 
-        public void RebuildGraph(Coordinates Coordinates)
+        public void RebuildGraph()
         {
-            NavSys.Get.RebuildGraphTree(Coordinates);
+            NavSys.Get.RebuildGraphTree(Origin);
         }
 
         // Build our side of the graph
@@ -680,16 +702,17 @@ namespace DarkNights
             }
         }
 
-        public bool AddNode(INavNode node)
+        public bool AddNode(INavNode node, bool rebuild = true)
         {
             Nodes.Add(node);
-            if ((node.Passability & PassabilityFlags.Impassable) != 0) RebuildGraph(node.Coordinates);
+            if (rebuild && (node.Passability & PassabilityFlags.Impassable) != 0) RebuildGraph();
             return true;
         }
 
         public void AddNodes(IEnumerable<INavNode> nodes, bool rebuild = false)
         {
             Nodes.AddRange(nodes);
+            if(rebuild) RebuildGraph();
         }
 
         public bool RemoveNode(INavNode node)
@@ -697,7 +720,7 @@ namespace DarkNights
             bool removed = Nodes.Remove(node);
             if (removed)
             {
-                if ((node.Passability & PassabilityFlags.Impassable) != 0) RebuildGraph(node.Coordinates);
+                if ((node.Passability & PassabilityFlags.Impassable) != 0) RebuildGraph();
             }
             return removed;
         }

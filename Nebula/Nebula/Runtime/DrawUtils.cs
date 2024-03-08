@@ -16,6 +16,7 @@ namespace Nebula.Runtime
     public static class DrawUtils
     {
         private static SpriteBatch spriteBatch => Graphics.SpriteBatch;
+        private static SpriteBatch uiBatch => Graphics.UIBatch;
 
         private static SpriteFont defaultFont;
         private static Texture2D lineTex;
@@ -105,7 +106,7 @@ namespace Nebula.Runtime
                 var origin = new Vector2(0f, 0.5f);
                 var scale = new Vector2(d, thickness);
 
-                spriteBatch.Draw(lineTex, v + Position, null, color, a, origin, new Vector2(scale.X, scale.Y), SpriteEffects.None, layerDepth);
+                uiBatch.Draw(lineTex, v + Position, null, color, a, origin, new Vector2(scale.X, scale.Y), SpriteEffects.None, layerDepth);
             }
         }
 
@@ -125,12 +126,12 @@ namespace Nebula.Runtime
 
         public static void DrawText(SpriteFont spriteFont, string text, Vector2 position, Color color, float layer)
         {
-            DrawText(spriteBatch, spriteFont, text, position, color, 0f, Vector2.Zero, 1.0f, SpriteEffects.None, 1.0f);
+            DrawText(uiBatch, spriteFont, text, position, color, 0f, Vector2.Zero, 1.0f, SpriteEffects.None, 1.0f);
         }
 
         public static void DrawText(string text, Vector2 position, Color color, float scale = 1f)
         {
-            DrawText(spriteBatch, defaultFont, text, position, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 1.0f);
+            DrawText(uiBatch, defaultFont, text, position, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 1.0f);
         }
 
         private static void DrawText(SpriteBatch batch, SpriteFont spriteFont, string text, Vector2 position, Color color, float rotation, Vector2 origin, float scale, SpriteEffects effects, float layer)

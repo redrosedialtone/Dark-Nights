@@ -57,6 +57,8 @@ namespace DarkNights
             log.Info("> Initialising.. ");
             Systems = new Manager[]
             {
+                new AssetManager(),
+                new EntityController(),
                 new WorldSystem(),
                 new PlayerController(),
                 new NavSys(),
@@ -136,16 +138,35 @@ namespace DarkNights
         {
             if (IsActive)
             {
-                Nebula.Draw(gameTime);
-                if (Initialised) 
-                {
-                    foreach (var sys in Systems)
-                    {
-                        sys.Draw();
-                    }
-                }
-                base.Draw(gameTime);
+                PreDraw();
+
+                MainDraw(gameTime);
+
+                PostDraw();
             }
+        }
+
+        private void PreDraw()
+        {
+            Nebula.PreDraw();
+        }
+
+        private void MainDraw(GameTime time)
+        {
+            Nebula.Draw(time);
+            if (Initialised)
+            {
+                foreach (var sys in Systems)
+                {
+                    sys.Draw();
+                }
+            }
+            base.Draw(time);
+        }
+
+        private void PostDraw()
+        {
+            Nebula.PostDraw();
         }
 
         protected override void UnloadContent()

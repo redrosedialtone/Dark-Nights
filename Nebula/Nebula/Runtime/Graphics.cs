@@ -11,9 +11,11 @@ using Nebula.Runtime;
 
 namespace Nebula.Main
 {
-    public interface ISpriteBatchDraw
+    public enum RenderTarget
     {
-        void Draw(SpriteBatch Batch);
+        ToCamera,
+        ToScreen,
+        ToDebug
     }
 
     public class Graphics : IControl
@@ -36,6 +38,7 @@ namespace Nebula.Main
         #endregion
 
         public static SpriteBatch SpriteBatch => Get._spriteBatch;
+        public static SpriteBatch UIBatch => Get._uiBatch;
 
         public GraphicsDeviceManager GraphicsDeviceMngr => NebulaRuntime.GraphicsDeviceMgr;
         public GraphicsDevice GraphicsDevice => NebulaRuntime.GraphicsDevice;
@@ -49,10 +52,8 @@ namespace Nebula.Main
         public Vector2 ScreenCentre => new Vector2((int)(ScreenSize.X / 2), (int)(ScreenSize.Y / 2));
         public Vector2 ScreenResolution => ScreenSize / new Vector2(RENDER_WIDTH, RENDER_HEIGHT);
 
-        private List<ISpriteBatchDraw> spriteBatchCalls = new List<ISpriteBatchDraw>();
-        private Stack<SpriteBatchRenderer> textureBuffer = new Stack<SpriteBatchRenderer>();
-
         private SpriteBatch _spriteBatch;
+        private SpriteBatch _uiBatch;
         private RenderTarget2D mainRenderTarget;
 
         //Texture2D ballTexture;
@@ -70,6 +71,7 @@ namespace Nebula.Main
             GraphicsDeviceMngr.ApplyChanges();
             mainRenderTarget = new RenderTarget2D(GraphicsDevice, RENDER_WIDTH, RENDER_HEIGHT, false, SurfaceFormat.Color, DepthFormat.None);
             _spriteBatch = new SpriteBatch(NebulaRuntime.GraphicsDevice);
+            _uiBatch = new SpriteBatch(NebulaRuntime.GraphicsDevice);
             DrawUtils.Setup(_spriteBatch);
         }
 
@@ -79,25 +81,21 @@ namespace Nebula.Main
 
         public void Draw(GameTime gameTime)
         {
-            StartDraw();
             DrawToScreen();
-            DrawToCamera(Camera.Get);
-            DrawToDebug();
-            FinishDraw();
+
         }
 
-        public void StartDraw()
+        public void PreDraw()
         {
             GraphicsDevice.SetRenderTarget(mainRenderTarget);
-            GraphicsDevice.Clear(ClearOptions.Target, new Color(23, 23, 23), 1.0f, 0);
+            GraphicsDevice.Clear(ClearOptions.Target, new Color(200, 200, 200), 1.0f, 0);
+            SpriteBatchRenderer.Get.StartDraw();
         }
 
         public void DrawToDebug()
         {
-            _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied);
-            Cursor.Get.DrawCursor(_spriteBatch);
+            Cursor.Get.DrawCursor(_uiBatch);
             Debug.DebugDraw();
-            _spriteBatch.End();
         }
 
         public void DrawToScreen()
@@ -105,38 +103,21 @@ namespace Nebula.Main
 
         }
 
-        public void DrawToCamera(Camera camera)
+        public void PostDraw()
         {
-            var matrix = camera.ViewTransformationMatrix;
-            _spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone, null, matrix);
-            log.Trace($"Drawing {spriteBatchCalls.Count} sprites..");
-            DrawSpriteBatch(_spriteBatch);
             Debug.Draw();
-            _spriteBatch.End();
-        }
+            SpriteBatchRenderer.Get.FinishDraw();
+            _uiBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend);
+            DrawToDebug();
+            _uiBatch.End();
 
-        public void FinishDraw()
-        {
+
             GraphicsDevice.SetRenderTarget(null);
-            GraphicsDevice.Clear(ClearOptions.Target, new Color(23, 23, 23), 1.0f, 0);
+            GraphicsDevice.Clear(ClearOptions.Target, new Color(200, 200, 200), 1.0f, 0);
 
-            _spriteBatch.Begin(SpriteSortMode.Deferred, null, null, null, null, null, null);
+            _spriteBatch.Begin(SpriteSortMode.Immediate, null, null, null, null, null, null);
             _spriteBatch.Draw(mainRenderTarget, Vector2.Zero, null, Color.White, 0f, new Vector2(0, 0), ScreenResolution, SpriteEffects.None, 1f);
             _spriteBatch.End();
-        }
-
-        
-        public static void AddBatchDraw(ISpriteBatchDraw draw)
-        {
-            Get.spriteBatchCalls.Add(draw);
-        }
-
-        private void DrawSpriteBatch(SpriteBatch Batch)
-        {
-            foreach (var child in spriteBatchCalls)
-            {
-                child.Draw(Batch);
-            }
         }
     }
 

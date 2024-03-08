@@ -28,6 +28,7 @@ namespace DarkNights
         public World World;
 
         private WorldGizmo gizmo;
+        private Tree tree;
 
         public override void Init()
         {
@@ -46,10 +47,18 @@ namespace DarkNights
             gizmo.Enabled = true;
             //gizmo.DrawChunks = true;
             gizmo.DrawTiles = true;
-            gizmo.DrawChunksUnderMouse = true;
-            gizmo.drawNoise = true;
-
+            gizmo.DrawChunksUnderMouse = true;
+            gizmo.drawNoise = true;
             World.GenerateBiomeData();
+        }
+
+        public override void Draw()
+        {
+            foreach (var chunk in World.Chunks())
+            {
+                chunk.Draw();
+            }
+            //SpriteBatchRenderer.Get.DrawSprite(tree.Sprite, tree.Position);
         }
 
         public Coordinates ClampToWorld(Coordinates Coordinate)
@@ -184,25 +193,25 @@ namespace DarkNights
                     DrawUtils.DrawPolygonOutlineToWorld(polygon, chunkHighlightColor,5.0f);
                 }*/
             }
-            if (drawNoise)
-            {
-                int i = 0;
-                int minX = 0 - WorldSystem.Get.World.Minimum.X;
-                int minY = 0 - WorldSystem.Get.World.Minimum.Y;
-                foreach (var chunk in WorldSystem.Get.World.Chunks())
-                {
-                    float val;
-                    if (WorldSystem.Get.World.FertilityMap.TryGetValue(chunk.GetHashCode(), out val))
-                    {
-                        float grad = 1.0f / 1.0f * (val);
-                        var colour = Color.Lerp(Color.Transparent, Color.White, grad);
-                        DrawUtils.DrawRectangleToWorld(chunk.Origin,
-                            Defs.UnitPixelSize * World.CHUNK_SIZE,
-                            Defs.UnitPixelSize * World.CHUNK_SIZE,
-                            colour);
-                        i++;
-                    }
-                }
+            if (drawNoise)
+            {
+                int i = 0;
+                int minX = 0 - WorldSystem.Get.World.Minimum.X;
+                int minY = 0 - WorldSystem.Get.World.Minimum.Y;
+                foreach (var chunk in WorldSystem.Get.World.Chunks())
+                {
+                    float val;
+                    if (WorldSystem.Get.World.FertilityMap.TryGetValue(chunk.GetHashCode(), out val))
+                    {
+                        float grad = 1.0f / 1.0f * (val);
+                        var colour = Color.Lerp(Color.Transparent, Color.White, grad);
+                        DrawUtils.DrawRectangleToWorld(chunk.Origin,
+                            Defs.UnitPixelSize * World.CHUNK_SIZE,
+                            Defs.UnitPixelSize * World.CHUNK_SIZE,
+                            colour);
+                        i++;
+                    }
+                }
             }
         }
 
