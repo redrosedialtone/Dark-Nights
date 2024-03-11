@@ -28,7 +28,6 @@ namespace DarkNights
         public World World;
 
         private WorldGizmo gizmo;
-        private Tree tree;
 
         public override void Init()
         {

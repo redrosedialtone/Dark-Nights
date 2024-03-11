@@ -1,7 +1,9 @@
 ﻿using Microsoft.Xna.Framework;
+using NLog.Fluent;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -23,6 +25,7 @@ namespace DarkNights
 
     public interface INavNode
     {
+        int Clearance { get; }
         PassabilityFlags Passability { get; }
         Coordinates Coordinates { get; }
         IEnumerable<INavNode> Neighbours { get; }
@@ -30,13 +33,15 @@ namespace DarkNights
 
     public class PathNode : INavNode
     {
+        public int Clearance { get; private set; }
         public PassabilityFlags Passability => PassabilityFlags.Pathing;
         public Coordinates Coordinates { get; private set; }
         public IEnumerable<INavNode> Neighbours { get; private set; }
 
-        public PathNode(Coordinates Coordinates)
+        public PathNode(Coordinates Coordinates, int clearance)
         {
             this.Coordinates = Coordinates; //this.Neighbours = Neighbours;
+            this.Clearance = clearance;
             NavSys.Get.AddTemporaryNode(this);
         }
 
@@ -53,6 +58,7 @@ namespace DarkNights
 
     public struct ImpassableNode : INavNode
     {
+        public int Clearance => 0;
         public PassabilityFlags Passability => PassabilityFlags.Impassable;
         public Coordinates Coordinates { get; private set; }
         public IEnumerable<INavNode> Neighbours => null;
@@ -66,6 +72,7 @@ namespace DarkNights
 
     public class AbstractGraphNode : INavNode
     {
+        public int Clearance { get; private set; }
         public PassabilityFlags Passability => PassabilityFlags.Pathing;
         public Coordinates Coordinates { get; private set; }
 
@@ -73,10 +80,11 @@ namespace DarkNights
         private INavNode[] intraEdges;
         public int Depth { get; private set; }
 
-        public AbstractGraphNode(Coordinates Coordinates, int Depth)
+        public AbstractGraphNode(Coordinates Coordinates, int Depth, int Clearance)
         {
             this.Coordinates = Coordinates; 
             this.Depth = Depth;
+            this.Clearance = Clearance;
             intraEdges = null;
         }
 
@@ -104,25 +112,53 @@ namespace DarkNights
     public class NavPath
     {
         public Stack<INavNode> abstractPath;
-        public Stack<Coordinates> tilePath = new Stack<Coordinates>();
-        public Stack<Coordinates> lastPath = new Stack<Coordinates>();
+        public Stack<Vector2> tilePath = new Stack<Vector2>();
+        public Stack<Vector2> lastPath = new Stack<Vector2>();
         public Action OnCompleted;
+        public int Clearance = 1;
         public bool Completed = false;
+        public bool invalid => (tilePath == null || tilePath.Count == 0) && (abstractPath == null || abstractPath.Count == 0);
+        private NLog.Logger log => NavSys.log;
 
-        private bool finishedMovement => (tilePath == null || tilePath.Count == 0) && (abstractPath == null || abstractPath.Count == 0);
         private Coordinates previous;
 
-        public Coordinates Next(Coordinates current)
+        public NavPath(int Clearance, Stack<INavNode> abstractPath)
         {
-            Coordinates next = previous;
+            this.Clearance = Clearance;
+            this.abstractPath = abstractPath;
+        }
+
+        public NavPath(int Clearance, Stack<Vector2> tilePath)
+        {
+            this.Clearance = Clearance;
+            this.tilePath = tilePath;
+        }
+
+        public Vector2 Next(Vector2 current)
+        {
+            Vector2 next = previous;
             if(tilePath.Count == 0)
             {
-                if (finishedMovement) Finish();
+                if (invalid) Finish();
                 else
                 {
                     var goal = abstractPath.Pop();
-                    tilePath = NavSys.Get.TilePath(current, goal.Coordinates);
+                    var clusterA = NavSys.Get.GetCluster(goal.Coordinates);
+                    var clusterB = NavSys.Get.GetCluster(current);
+                    NavPath newPath;
+                    if (clusterA == clusterB) newPath = NavSys.Get.CreateTilePath(current, goal.Coordinates, Clearance, clusterA);
+                    else newPath = NavSys.Get.CreateTilePath(current, goal.Coordinates, Clearance);
+
+                    if(newPath == null || newPath.tilePath.Count == 0)
+                    {
+                        log.Error("NavPath is invalid!");
+                        Finish();
+                        return next;
+                    }
+
+                    tilePath = newPath.tilePath;
                 }
+                //if (tilePath == null) Finish();
             }
             if(!Completed)
             {
@@ -157,6 +193,8 @@ namespace DarkNights
         public Cluster Source;
         public Cluster Cast;
 
+        private int maxLength = 6;
+
         public GraphHelper(Cluster source, Cluster cast)
         {
             Source = source;
@@ -178,7 +216,7 @@ namespace DarkNights
                 Coordinates t = borders[0][cIndex];
                 Coordinates sym = borders[1][cIndex];
                 bool adjacent = t.AdjacentTo(previous.t) || sym.AdjacentTo(previous.sym);
-                bool obstacle = NavSys.Get.Impassable(t) || NavSys.Get.Impassable(sym);
+                bool obstacle = NavSys.Get.Passability(t, PassabilityFlags.Impassable) || NavSys.Get.Passability(sym, PassabilityFlags.Impassable);
                 if (obstacle)
                 {
                     if(cIndex > pIndex) { lines.AddFirst(new Coordinates[][] { borders[0][pIndex..cIndex], borders[1][pIndex..cIndex] }); }
@@ -194,20 +232,83 @@ namespace DarkNights
 
             if (cIndex > pIndex) { lines.AddFirst(new Coordinates[][] { borders[0][pIndex..cIndex], borders[1][pIndex..cIndex] }); }
 
-            InterEdge[] ret = new InterEdge[lines.Count];
+            List<InterEdge> ret = new List<InterEdge>();
 
             int i = 0;
             foreach (var line in lines)
             {
-                int symInd = line[0].Length / 2;
-                InterEdge e = new InterEdge()
+                // Place one node.
+                if (line[0].Length <= 2)
                 {
-                    Tiles = line[0],
-                    Transition = (line[0][symInd], line[1][symInd])
-                };
-                ret[i++] = e;
+                    InterEdge e = new InterEdge()
+                    {
+                        Tiles = line[0],
+                        Transition = (line[0][0], line[1][0])
+                    };
+                    ret.Add(e);
+                }
+                // One node on each side
+                else if (line[0].Length < maxLength)
+                {
+                    InterEdge e1 = new InterEdge()
+                    {
+                        Tiles = line[0],
+                        Transition = (line[0][0], line[1][0])
+                    };
+                    ret.Add(e1);
+                    InterEdge e2 = new InterEdge()
+                    {
+                        Tiles = line[0],
+                        Transition = (line[0][line[0].Length-1], line[1][0])
+                    };
+                    ret.Add(e2);
+                }
+                // One on each side, plus one every length.
+                else
+                {
+                    InterEdge e1 = new InterEdge()
+                    {
+                        Tiles = line[0],
+                        Transition = (line[0][0], line[1][0])
+                    };
+                    ret.Add(e1);
+                    InterEdge e2 = new InterEdge()
+                    {
+                        Tiles = line[0],
+                        Transition = (line[0][line[0].Length-1], line[1][line[0].Length-1])
+                    };
+                    ret.Add(e2);
+
+                    int num = (line[0].Length-2) / maxLength;
+                    if (num == 1)
+                    {
+                        int index = line[0].Length / 2;
+                        InterEdge e3 = new InterEdge()
+                        {
+                            Tiles = line[0],
+                            Transition = (line[0][index], line[1][index])
+                        };
+                        ret.Add(e3);
+                    }
+                    else if (num > 1)
+                    {
+                        int spacing = (line[0].Length - 2) / num;
+                        for (; num > 0; num--)
+                        {
+                            int index = num * spacing;
+                            InterEdge e3 = new InterEdge()
+                            {
+                                Tiles = line[0],
+                                Transition = (line[0][index], line[1][index])
+                            };
+                            ret.Add(e3);
+                        }
+                    }
+
+                }
+
             }
-            return ret;
+            return ret.ToArray();
         }
 
         public Coordinates[][] Borders()

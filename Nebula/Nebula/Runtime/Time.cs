@@ -69,7 +69,7 @@ namespace Nebula.Main
             currentFrametimes = currentFrametimes / weight;
             currentFrametimes += Time.DeltaTime;
             var fps = string.Format("FPS: {0:0.##}", this.framerate);
-            DrawUtils.DrawText(fps, new Vector2(1, 1), Color.Yellow);
+            DrawUtils.DrawTextToScreen(fps, new Vector2(1, 1), Color.Yellow);
 
         }
 

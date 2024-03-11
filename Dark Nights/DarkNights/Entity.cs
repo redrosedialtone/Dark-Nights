@@ -12,6 +12,7 @@ namespace DarkNights
     {
         string Name { get; }
         Vector2 Position { get; set; }
+        float Rotation { get; set; }
         Coordinates Coordinates => Position;
         Sprite2D Sprite { get; }
     }
@@ -19,6 +20,7 @@ namespace DarkNights
     public abstract class EntityBase : IEntity
     {
         public string Name { get; protected set; }
+        public float Rotation { get; set; }
         public Coordinates Coordinates => Position;
         public Vector2 Position { get; set; }
         public Sprite2D Sprite { get; protected set; }

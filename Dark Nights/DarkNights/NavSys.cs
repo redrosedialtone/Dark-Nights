@@ -10,6 +10,7 @@ using Priority_Queue;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
+using System.Drawing;
 using System.Linq;
 using System.Reflection.Emit;
 using System.Security.Cryptography.X509Certificates;
@@ -34,25 +35,88 @@ namespace DarkNights
         public Action<INavNode> NavNodeAdded = delegate { };
         public Action<INavNode> NavNodeRemoved = delegate { };
         public int ClusterSize => (int)(Defs.ChunkSize);
-        public int ClusterStep(int level) => ClusterSize * (int)MathF.Pow(3, level);
-        public int ClusterFromStep(int size) => (int)(MathF.Log(size / ClusterSize) / MathF.Log(3));
 
-        public Dictionary<int, Cluster>[] clusters = new Dictionary<int, Cluster>[1];
+        //public int ClusterStep(int level) => ClusterSize * (int)MathF.Pow(3, level);
+        //public int ClusterFromStep(int size) => (int)(MathF.Log(size / ClusterSize) / MathF.Log(3));
+
+        public Dictionary<int, Cluster> ClusterGraph;
 
         public List<PathNode> temporaryNodes = new List<PathNode>();
         private LinkedList<INavNode> dirtyNodes = new LinkedList<INavNode>();
         private HashSet<Cluster> dirtyClusters = new HashSet<Cluster>();
+        private int m_hierarchyLevels = 1;
         private bool m_dirtyNodes = false;
         private bool m_dirtyClusters = false;
+        private int[] clusterSteps;
 
         public override void Init()
         {
             log.Info("> ..");
             instance = this;
 
-            GenerateClusters();
+            clusterSteps = new int[m_hierarchyLevels];
+            for (int i = 0; i < m_hierarchyLevels; i++)
+            {
+                clusterSteps[i] = ClusterSize * (int)MathF.Pow(3, i);
+            }
+            ClusterGraph = new Dictionary<int, Cluster>();
+            GenerateClusters(m_hierarchyLevels);
 
             ApplicationController.Get.Initiate(this);
+        }
+
+
+
+        public override void OnInitialized()
+        {
+            base.OnInitialized();
+
+            NavigationGizmo navGizmo = new NavigationGizmo();
+            navGizmo.Enabled = true;
+            navGizmo.DrawNodes = true;
+            navGizmo.DrawPaths = true;
+            navGizmo.DrawClusters = true;
+            //navGizmo.DrawClusterEdges = true;
+            navGizmo.DrawClearance = true;
+        }
+
+        private void GenerateClusters(int hierarchyLevels)
+        {
+            Coordinates minimum = WorldSystem.Get.World.MinimumTile;
+            Coordinates maximum = WorldSystem.Get.World.MaximumTile;
+
+            int count = 0;
+            // Generate Clusters
+            for (int level = 0; level < hierarchyLevels; level++)
+            {
+                int step = clusterSteps[level];
+
+                (int X, int Y) min = ((int)MathF.Floor((float)minimum.X / step), (int)MathF.Floor((float)minimum.Y / step));
+                (int X, int Y) max = ((int)MathF.Ceiling((float)maximum.X / step), (int)MathF.Ceiling((float)maximum.Y / step));
+
+                for (int x = min.X; x < max.X; x++)
+                {
+                    for (int y = min.Y; y < max.Y; y++)
+                    {
+                        Cluster newCluster = new Cluster(new Coordinates(x * step, y * step), level, step);
+                        ClusterGraph.Add(newCluster.GetHashCode(), newCluster);
+                        count++;
+                    }
+                }
+            }
+
+            log.Info($"Generated Cluster Map of Size {count} & Depth {hierarchyLevels}");
+
+            // Generate Graphs
+            foreach (var clusterKV in ClusterGraph)
+            {
+                clusterKV.Value.BuildSourceGraph();
+            }
+
+            foreach (var clusterKV in ClusterGraph)
+            {
+                clusterKV.Value.BuildCastGraph();
+            }
         }
 
         public override void Tick()
@@ -72,7 +136,7 @@ namespace DarkNights
                 LinkedList<Cluster> dirty = new LinkedList<Cluster>();
                 foreach (var node in dirtyNodes)
                 {
-                    Cluster cluster = Cluster(node.Coordinates);
+                    Cluster cluster = GetCluster(node.Coordinates);
                     if (cluster != null)
                     {
                         cluster.AddNode(node, false);
@@ -88,149 +152,123 @@ namespace DarkNights
             }
         }
 
-        public override void OnInitialized()
-        {
-            base.OnInitialized();
 
-            NavigationGizmo navGizmo = new NavigationGizmo();
-            navGizmo.Enabled = true;
-            navGizmo.DrawNodes = true;
-            navGizmo.DrawPaths = true;
-            navGizmo.DrawClusters = true;
-            navGizmo.DrawRegionEdges = true;
-            //navGizmo.DrawRegionBounds = true;
-            navGizmo.DrawInterEdges = true;
+        public static NavPath Path(Coordinates start, Coordinates goal, int size = 1)
+        {
+            return instance.instance_Path(start, goal, size);
         }
 
-        private void GenerateClusters()
+        private NavPath instance_Path(Coordinates start, Coordinates goal, int size = 1)
         {
-            Coordinates minimum = WorldSystem.Get.World.MinimumTile;
-            Coordinates maximum = WorldSystem.Get.World.MaximumTile;
+            Cluster origin = GetCluster(start);
+            Cluster target = GetCluster(goal);
 
-            // Generate Clusters
-            for (int level = 0; level < clusters.Length; level++)
+            if (origin == null || target == null)
             {
-                clusters[level] = new Dictionary<int, Cluster>();
-                int step = ClusterStep(level);
-
-                (int X, int Y) min = ((int)MathF.Floor((float)minimum.X / step), (int)MathF.Floor((float)minimum.Y / step));
-                (int X, int Y) max = ((int)MathF.Ceiling((float)maximum.X / step), (int)MathF.Ceiling((float)maximum.Y / step));
-
-                for (int x = min.X; x < max.X; x++)
-                {
-                    for (int y = min.Y; y < max.Y; y++)
-                    {
-                        Cluster newCluster = new Cluster(new Coordinates(x * step, y * step), level, step);
-                        clusters[level].Add(new Coordinates(x, y).GetHashCode(), newCluster);
-
-                        log.Trace($"New Cluster({level}) @ {newCluster.Origin}");
-                    }
-                }
+                log.Warn($"No Cluster Exists @ {goal}");
+                return null;
             }
 
-            // Generate Graphs
-            for (int depth = 0; depth < clusters.Length; depth++)
+            int clearance = Clearance(goal);
+            if (clearance < size)
             {
-                foreach (var kV in clusters[depth])
-                {
-                    var cluster = kV.Value;
-                    cluster.BuildSourceGraph();
-                }
+                log.Warn($"Impassable Node @ {goal}");
+                return null;
             }
 
-            for (int depth = 0; depth < clusters.Length; depth++)
-            {
-                foreach (var kV in clusters[depth])
-                {
-                    var cluster = kV.Value;
-                    cluster.BuildCastGraph();
-                }
-            }
-        }
+            PathNode startNode = new PathNode(start,size);
+            PathNode endNode = new PathNode(goal,size);
 
-
-        public static NavPath Path(Coordinates A, Coordinates B)
-        {
-            return instance.instance_PathHierarchal(A, B);
-
-            /*var tiles = instance.TilePath(A, B);
-            if (tiles == null || tiles.Count == 0) return null;
-
-            NavPath path = new NavPath();
-            path.tilePath = tiles;
-            return path;*/
-        }
-
-        public Stack<Coordinates> TilePath(Coordinates Start, Coordinates Goal)
-        {
-            if (TryGetNode(Goal, out INavNode node))
-            {
-                if (node.Passability == PassabilityFlags.Impassable)
-                {
-                    log.Warn($"Impassable Node @ {Goal}");
-                    return null;
-                }
-            }
-            var heuristic = new AStarManhattan();
-            var path = heuristic.Path(Start, Goal);
-
-            return new Stack<Coordinates>(path);
-        }
-
-        private NavPath instance_PathHierarchal(Vector2 start, Vector2 goal)
-        {
-            //log.Debug($"Generating Hierchal Path from {start} to {goal}..");
-
-            NavPath finalPath = new NavPath();
-            AStarHierarchal astar = new AStarHierarchal();
-
+            AStar astar = new AStar(size, (origin.Minimum, origin.Maximum));
             int connected = 0;
-
-            Cluster origin = Cluster(start);
-            Cluster target = Cluster(goal);
-            if (origin == target)
-            {
-                finalPath.tilePath = TilePath(start, goal);
-                return finalPath;
-            }
-            PathNode startNode = new PathNode(start);
-            PathNode endNode = new PathNode(goal);
-            finalPath.OnCompleted += startNode.Clear;
-            finalPath.OnCompleted += endNode.Clear;
 
             for (int gIndx = 0; gIndx < origin.InterEdgeNodes.Length; gIndx++)
             {
                 var node = origin.InterEdgeNodes[gIndx][0];
-                if(astar.NodePath(startNode, node, origin))
+                if (astar.Path(startNode.Coordinates, node.Coordinates).Length != 0)
                 {
                     startNode.ConnectToGraph(origin.InterEdgeNodes[gIndx]);
                     connected++;
+                    break;
                 }
             }
 
-
+            astar.SetBounds((target.Minimum, target.Maximum));
 
             for (int gIndx = 0; gIndx < target.InterEdgeNodes.Length; gIndx++)
             {
                 var node = target.InterEdgeNodes[gIndx][0];
-                if (astar.NodePath(endNode, node, target))
+                if (astar.Path(endNode.Coordinates, node.Coordinates).Length != 0)
                 {
                     endNode.ConnectToGraph(target.InterEdgeNodes[gIndx]);
                     connected++;
+                    break;
                 }
             }
 
-            if(connected != 2)
+            if (connected < 2)
             {
                 log.Warn("Could not connect path nodes to graph!!");
+                startNode.Clear();
+                endNode.Clear();
                 return null;
             }
 
-            var path = astar.Path(startNode, endNode);
+            NavPath entityPath;
+            if (origin == target &&
+                endNode.Neighbours.FirstOrDefault() == startNode.Neighbours.FirstOrDefault())
+            {
+                entityPath = CreateTilePath(start, goal, size);
+            }
+            else
+            {
+                entityPath = CreateAbstractPath(startNode,endNode,size);
+            }
+            if (entityPath == null || entityPath.invalid)
+            {
+                log.Warn("Could not generate path!!");
+                startNode.Clear();
+                endNode.Clear();
+                return null;
+            }
+            entityPath.OnCompleted += startNode.Clear;
+            entityPath.OnCompleted += endNode.Clear;
 
-            finalPath.abstractPath = path;
+            return entityPath;
+        }
 
-            return finalPath;
+        public NavPath CreateTilePath(Coordinates Start, Coordinates Goal, int size)
+        {
+            int clearance = Clearance(Goal);
+            if(clearance < size)
+            {
+                log.Warn($"Impassable Node @ {Goal}");
+                return null;
+            }
+            var heuristic = new AStar(size);
+            var path = heuristic.Path(Start, Goal);
+
+            return new NavPath(size, new Stack<Vector2>(path));
+        }
+
+        public NavPath CreateTilePath(Coordinates Start, Coordinates Goal, int size, Cluster cluster)
+        {
+            int clearance = Clearance(Goal);
+            if (clearance < size)
+            {
+                log.Warn($"Impassable Node @ {Goal}");
+                return null;
+            }
+            var heuristic = new AStar(size, (cluster.Minimum, cluster.Maximum));
+            var path = heuristic.Path(Start, Goal);
+
+            return new NavPath(size, new Stack<Vector2>(path));
+        }
+
+        private NavPath CreateAbstractPath(INavNode start, INavNode goal, int size = 1)
+        {
+            AStarHierarchal astar = new AStarHierarchal(size);
+            return new NavPath(size, new Stack<INavNode>(astar.Path(start, goal)));
         }
 
         private IEnumerable<Coordinates> DrawLine(Coordinates A, Coordinates B)
@@ -279,7 +317,7 @@ namespace DarkNights
 
         public void RemoveNode(INavNode Node)
         {
-            Cluster cluster = Cluster(Node.Coordinates);
+            Cluster cluster = GetCluster(Node.Coordinates);
             if (cluster != null)
             {
                 if (cluster.RemoveNode(Node))
@@ -300,16 +338,37 @@ namespace DarkNights
             temporaryNodes.Remove(node);
         }
 
-        public bool Impassable(Coordinates Coordinates)
+        public PassabilityFlags Passability(Coordinates Coordinates)
         {
             if (TryGetNode(Coordinates, out INavNode Node))
             {
-                if (Node.Passability == PassabilityFlags.Impassable)
-                {
-                    return true;
-                }
+                return Node.Passability;
+            }
+            return PassabilityFlags.Nil;
+        }
+
+        public bool Passability(Coordinates Coordinates, PassabilityFlags flags)
+        {
+            if (TryGetNode(Coordinates, out INavNode Node))
+            {
+                if ((Node.Passability & flags) != 0) return true;
+                return false;
             }
             return false;
+        }
+
+        public int Clearance(Coordinates Coordinates)
+        {
+            var cluster = GetCluster(Coordinates);
+            (int x, int y) local = cluster.LocalTile(Coordinates);
+            return cluster.Clearance[local.x][local.y];
+        }
+
+        public int Traversability(Coordinates Coordinates)
+        {
+            var cluster = GetCluster(Coordinates);
+            (int x, int y) local = cluster.LocalTile(Coordinates);
+            return cluster.Traversability[local.x][local.y];
         }
 
         public bool TryGetNode(Coordinates Coordinates, out INavNode Node, int depth = 0)
@@ -335,7 +394,7 @@ namespace DarkNights
 
         public INavNode instance_Node (Coordinates Coordinates, int depth = 0)
         {
-            Cluster cluster = Cluster(Coordinates, depth);
+            Cluster cluster = GetCluster(Coordinates, depth);
             if (cluster != null)
             {
                 return cluster.Node(Coordinates);
@@ -345,7 +404,7 @@ namespace DarkNights
 
         public T instance_Node<T>(Coordinates Coordinates, int depth = 0) where T : INavNode
         {
-            Cluster cluster = Cluster(Coordinates, depth);
+            Cluster cluster = GetCluster(Coordinates, depth);
             if (cluster != null)
             {
                 return cluster.Node<T>(Coordinates);
@@ -355,7 +414,7 @@ namespace DarkNights
 
         public INavNode instance_Node(Coordinates Coordinates, out Cluster cluster)
         {
-            cluster = Cluster(Coordinates, 0);
+            cluster = GetCluster(Coordinates, 0);
             if (cluster != null)
             {
                 return cluster.Node(Coordinates);
@@ -366,9 +425,10 @@ namespace DarkNights
         public void RebuildGraphTree(Coordinates coordinates)
         {
             List<Cluster> rebuilt = new List<Cluster>();
-            for (int depth = 0; depth < clusters.Length; depth++)
+            for (int depth = 0; depth < m_hierarchyLevels; depth++)
             {
-                Cluster cluster = Cluster(coordinates, depth);
+
+                Cluster cluster = GetCluster(coordinates, depth);
                 cluster.BuildSourceGraph();
                 foreach (var neighbour in ClusterNeighbours(cluster))
                 {
@@ -389,26 +449,26 @@ namespace DarkNights
             }
         }
 
-        public Cluster Cluster(Coordinates Coordinates, int level = 0)
+        public Cluster GetCluster(Coordinates Coordinates, int depth = 0)
         {
-            if (level >= clusters.Length) return null;
-            int step = ClusterStep(level);
+            if (depth >= m_hierarchyLevels) return null;
+            int step = clusterSteps[depth];
             int X = (int)MathF.Floor((float)Coordinates.X / step);
             int Y = (int)MathF.Floor((float)Coordinates.Y / step);
-            Coordinates origin = new Coordinates(X, Y);
-            if (clusters[level].TryGetValue(origin.GetHashCode(), out Cluster val))
+            Coordinates origin = new Coordinates(X*step, Y*step);
+            int hashCode = Cluster.PredictHashCode(origin, depth);
+            if(ClusterGraph.TryGetValue(hashCode, out Cluster val))
             {
                 return val;
             }
-            //log.Trace($"No Cluster @ {origin}");
-            return default;
+            return null;
         }
 
         public IEnumerable<Cluster> ClusterTree(Coordinates Coordinates)
         {
-            for (int depth = 0; depth < clusters.Length; depth++)
+            for (int depth = 0; depth < m_hierarchyLevels; depth++)
             {
-                yield return Cluster(Coordinates, depth);
+                yield return GetCluster(Coordinates, depth);
             }
         }
 
@@ -420,8 +480,8 @@ namespace DarkNights
             Coordinates tileMin = new Coordinates(min);
             Coordinates tileMax = new Coordinates(max);
 
-            Cluster clusterMin = Cluster(tileMin, depth);
-            Cluster clusterMax = Cluster(tileMax, depth);
+            Cluster clusterMin = GetCluster(tileMin, depth);
+            Cluster clusterMax = GetCluster(tileMax, depth);
 
             if (clusterMin == null || clusterMax == null) yield break;
 
@@ -429,33 +489,7 @@ namespace DarkNights
             {
                 for (int y = tileMin.Y; y <= tileMax.Y; y+=clusterMin.Size)
                 {
-                    yield return Cluster(new Coordinates(x, y), depth);
-                }
-            }
-        }
-
-        public IEnumerable<Cluster> ClustersInRadius(Vector2 position, float tiles)
-        {
-            //tiles *= Defs.UnitPixelSize;
-            Vector2 min = new Vector2(position.X - tiles, position.Y - tiles);
-            Vector2 max = new Vector2(position.X + tiles, position.Y + tiles);
-            Coordinates tileMin = new Coordinates(min);
-            Coordinates tileMax = new Coordinates(max);
-
-            Cluster clusterMin = Cluster(tileMin, 0);
-            Cluster clusterMax = Cluster(tileMax, 0);
-
-            if (clusterMin == null || clusterMax == null) yield break;
-
-            for (int x = tileMin.X; x <= tileMax.X; x += clusterMin.Size)
-            {
-                for (int y = tileMin.Y; y <= tileMax.Y; y += clusterMin.Size)
-                {
-                    for (int depth = 0; depth < clusters.Length; depth++)
-                    {
-                        var cluster = Cluster(new Coordinates(x, y), depth);
-                        if (cluster != null) yield return cluster;
-                    }
+                    yield return GetCluster(new Coordinates(x, y), depth);
                 }
             }
         }
@@ -463,7 +497,7 @@ namespace DarkNights
         public Cluster ClusterNeighbour(Cluster centre, Coordinates dir)
         {
             Coordinates neighbouringEdge = centre.Origin + new Coordinates(dir.X * centre.Size, dir.Y * centre.Size);
-            return Cluster(neighbouringEdge, centre.Depth);
+            return GetCluster(neighbouringEdge, centre.Depth);
         }
 
         public IEnumerable<Cluster> ClusterNeighbours(Cluster centre)
@@ -483,17 +517,17 @@ namespace DarkNights
         }
 
 
-        public IEnumerable<Cluster> ClusterChildren(Cluster parent, int level)
+        public IEnumerable<Cluster> ClusterChildren(Cluster parent, int depth)
         {
-            level--;
-            if (level < 0) yield break;
-            int step = ClusterStep(level);
+            depth--;
+            if (depth < 0) yield break;
+            int step = clusterSteps[depth];
             (Coordinates min, Coordinates max) bounds = (parent.Minimum, parent.Maximum);
             for (int x = bounds.min.X; x < bounds.max.X; x+=step)
             {
                 for (int y = bounds.min.Y; y < bounds.max.Y; y+=step)
                 {
-                    yield return Cluster(new Coordinates(x,y), level);
+                    yield return GetCluster(new Coordinates(x,y), depth);
                 }
             }
         }
@@ -501,8 +535,8 @@ namespace DarkNights
         public Cluster ClusterParent(Cluster child)
         {
             int level = child.Depth + 1;
-            if (level > clusters.Length) return null;
-            return Cluster(child.Origin, level);
+            if (level > m_hierarchyLevels) return null;
+            return GetCluster(child.Origin, level);
         }
 
         public IEnumerable<(Coordinates From, Coordinates To)> ClusterEdges(Cluster from, Cluster to)
@@ -579,7 +613,7 @@ namespace DarkNights
     }
 
     /// <summary>
-    /// Clusters are responsibly for updating & storing pathfinding data.
+    /// Clusters are responsible for updating & storing pathfinding data.
     /// </summary>
     public class Cluster
     {
@@ -588,6 +622,8 @@ namespace DarkNights
         public int Depth { get; private set; }
         public int Size { get; private set; }
 
+        public int[][] Clearance { get; private set; }
+        public int[][] Traversability { get; private set; }
         public InterEdge[][] InterEdges = new InterEdge[4][];
         public AbstractGraphNode[][] InterEdgeNodes = new AbstractGraphNode[4][];
         public List<INavNode> Nodes { get; private set; } = new List<INavNode>();
@@ -619,6 +655,10 @@ namespace DarkNights
         // Build our side of the graph
         public void BuildSourceGraph()
         {
+            // Generate clearances
+            BuildClearanceData();
+            BuildTraversabilityData();
+
             // Generate Inter-edges
             int i = 0;
             foreach (var neighbour in NavSys.Get.ClusterNeighbours(this))
@@ -640,7 +680,12 @@ namespace DarkNights
                         var interEdge = border[eIndx];
                         AbstractGraphNode n1 = Node<AbstractGraphNode>(interEdge.Transition.t);
 
-                        if (n1 == null) newNodes[bIndx][eIndx] = new AbstractGraphNode(interEdge.Transition.t, this.Depth);
+                        if (n1 == null)
+                        {
+                            (int x, int y) local = LocalTile(interEdge.Transition.t);
+                            int clearance = Clearance[local.x][local.y];
+                            newNodes[bIndx][eIndx] = new AbstractGraphNode(interEdge.Transition.t, this.Depth, clearance);
+                        }
                         else newNodes[bIndx][eIndx] = n1;
                     }
                 }
@@ -672,14 +717,14 @@ namespace DarkNights
             }
 
             var openSet = GraphNodes.ToHashSet();
-            AStarManhattan path = new AStarManhattan();
+            AStar path = new AStar(1, (this.Minimum, this.Maximum));
 
             List<AbstractGraphNode[]> interEdges = new List<AbstractGraphNode[]>();
 
             while (openSet.Count > 0)
             {
                 AbstractGraphNode next = openSet.First();
-                path.NodeSearch(next, openSet, this, out HashSet<AbstractGraphNode> closedSet);
+                path.NodeSearch(next, openSet, out HashSet<AbstractGraphNode> closedSet);
                 if (closedSet.Count > 0)
                 {
                     interEdges.Add(closedSet.ToArray());
@@ -699,6 +744,111 @@ namespace DarkNights
                     cur.IntraEdges(group);
                 }
                 g++;
+            }
+        }
+
+
+        public void BuildClearanceData()
+        {
+            int maxClearance = 4;
+            Clearance = new int[Size][];
+            for (int i = 0; i < Clearance.Length; i++)
+            {
+                Clearance[i] = new int[Size];
+            }
+            foreach (var tile in Tiles())
+            {
+                int x = tile.X - Minimum.X;
+                int y = tile.Y - Minimum.Y;
+                int clearance = 1;
+                if (NavSys.Get.Passability(tile, PassabilityFlags.Impassable))
+                {
+                    clearance = 0;
+                }
+                else
+                {
+                    while (clearance < maxClearance)
+                    {
+                        bool blocked = false;
+                        foreach (var neighbour in ExpandTileBR(tile, clearance))
+                        {
+                            if (NavSys.Get.Passability(neighbour, PassabilityFlags.Impassable))
+                            {
+                                blocked = true;
+                                break;
+                            }
+                        }
+                        if (blocked) break;
+                        clearance++;
+                    }
+                }
+
+                Clearance[x][y] = clearance;
+            }
+        }
+
+        private void BuildTraversabilityData()
+        {
+            int maxClearance = 4;
+            Traversability = new int[Size][];
+            for (int i = 0; i < Clearance.Length; i++)
+            {
+                Traversability[i] = Enumerable.Repeat(maxClearance,Size).ToArray();
+            }
+            foreach (var obstacle in Nodes)
+            {
+                Coordinates tile = obstacle.Coordinates;
+                (int x, int y) local = LocalTile(tile);
+                Traversability[local.x][local.y] = 0;
+                int clearance = 1;
+                // Not an obstacle
+                if ((obstacle.Passability & PassabilityFlags.Impassable) == 0) continue;
+                while (clearance < maxClearance)
+                {
+                    foreach (var neighbour in ExpandTile(tile, clearance))
+                    {
+                        if (neighbour.X < Minimum.X || neighbour.Y < Minimum.Y ||
+                            neighbour.X >= Maximum.X || neighbour.Y >= Maximum.Y) continue;
+                        (int x, int y) localN = LocalTile(neighbour);
+                        if (Traversability[localN.x][localN.y] > clearance)
+                        {
+                            Traversability[localN.x][localN.y] = clearance;
+                        }
+                    }
+                    clearance++;
+                }
+            }
+        }
+
+        private IEnumerable<Coordinates> ExpandTileBR(Coordinates tile, int expansions)
+        {
+            int mX = tile.X + expansions;
+            int mY = tile.Y + expansions;
+
+            for (int x = tile.X; x <= mX; x++)
+            {
+                for (int y = tile.Y; y <= mY; y++)
+                {
+                    if(x == mX || y == mY)
+                    {
+                        yield return new Coordinates(x, y);
+                    }
+                }
+            }
+        }
+
+        private IEnumerable<Coordinates> ExpandTile(Coordinates tile, int expansions)
+        {
+            (int min, int max) mX = (tile.X - expansions, tile.X + expansions);
+            (int min, int max) mY = (tile.Y - expansions, tile.Y + expansions);
+
+            for (int x = mX.min; x <= mX.max; x++)
+            {
+                for (int y = mY.min; y <= mY.max; y++)
+                {
+                    if (x == tile.X && y == tile.Y) continue;
+                    yield return new Coordinates(x, y);
+                }
             }
         }
 
@@ -758,6 +908,13 @@ namespace DarkNights
                     if(child != null) yield return child;
                 }
             }
+        }
+
+        public (int,int) LocalTile(Coordinates tile)
+        {
+            int x = tile.X - this.Minimum.X;
+            int y = tile.Y - this.Minimum.Y;
+            return (x, y);
         }
 
         public IEnumerable<Coordinates> Tiles()
@@ -820,7 +977,12 @@ namespace DarkNights
 
         public override int GetHashCode()
         {
-            return Origin.GetHashCode() ^ Size.GetHashCode();
+            return Origin.GetHashCode() ^ Depth;
+        }
+
+        public static int PredictHashCode(Coordinates origin, int Depth)
+        {
+            return origin.GetHashCode() ^ Depth;
         }
     }
 }

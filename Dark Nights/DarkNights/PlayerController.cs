@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Nebula;
 using Nebula.Main;
 using Nebula.Runtime;
 using Nebula.Systems;
@@ -66,6 +67,12 @@ namespace DarkNights
             PlayerCharacter.Tick();
         }
 
+        public override void Draw()
+        {
+            base.Draw();
+            SpriteBatchRenderer.Get.DrawSprite(PlayerCharacter.Sprite, PlayerCharacter.Position, PlayerCharacter.Rotation);
+        }
+
         public void OnMovementAxis(Vector2 movementAxis)
         {
             
@@ -129,16 +136,13 @@ namespace DarkNights
     {
         public bool Enabled { get; set; }
 
-        public bool DrawCharacters { get { return _drawCharacters; } set { _drawCharacters = value; SetDrawPlayer(); } }
+        public bool DrawCharacters { get { return _drawCharacters; } set { _drawCharacters = value; } }
         private bool _drawCharacters = false;
         private Color characterOutlineColor => new Color(125, 75, 125, 225);
-        private Line pathLine;
 
-        public bool DrawCharacterPaths { get { return _drawCharacterPaths; } set { _drawCharacterPaths = value; SetDrawPaths(); } }
+        public bool DrawCharacterPaths { get { return _drawCharacterPaths; } set { _drawCharacterPaths = value; } }
         private bool _drawCharacterPaths = false;
         private Color characterPathColor => new Color(225, 225, 225, 225);
-
-        private Polygon characterPolygon;
 
         public CharacterGizmo()
         {
@@ -150,66 +154,18 @@ namespace DarkNights
 
         }
 
+
         public void Draw()
         {
+            var player = PlayerController.Get.PlayerCharacter;
             if (_drawCharacters)
             {
-                //DrawUtils.DrawPolygonOutlineToWorld(characterPolygon, characterOutlineColor, 5f);
-                Vector2 offset = new Vector2(32, 32);
-                DrawUtils.DrawRectangleToWorld(characterPolygon.Position - offset, 64, 64, characterOutlineColor);
+                Vector2 pos = player.Coordinates;
+                DrawUtils.DrawPolygonOutlineToWorld(new Rectangle((int)pos.X, (int)pos.Y, 64,64), characterOutlineColor);
             }
             if (_drawCharacterPaths)
             {
-                DrawUtils.DrawLineToWorld(pathLine, characterPathColor);
-            }
-        }
-
-        private void SetDrawPlayer()
-        {
-            if (_drawCharacters)
-            {
-                Vector2[] corners = new Vector2[4];
-
-                corners[0] = new Coordinates(-1,-1);
-                corners[1] = new Coordinates(1,-1);
-                corners[2] = new Coordinates(1,1);
-                corners[3] = new Coordinates(-1,1);
-
-                characterPolygon = new Polygon(corners, PlayerController.Get.PlayerCharacter.Position);
-
-                PlayerController.Get.PlayerCharacter.Movement.OnEntityMovement += UpdateGizmoPos;
-            }
-            else
-            {
-                PlayerController.Get.PlayerCharacter.Movement.OnEntityMovement -= UpdateGizmoPos;
-                characterPolygon = null;
-            }
-        }
-
-        private void UpdateGizmoPos(object sender, EntityMovementArgs e)
-        {
-            if (characterPolygon != null) characterPolygon.Position = e.newPosition;
-            if (_drawCharacterPaths)
-            {
-                if (sender is EntityMovement character)
-                {
-                    pathLine.From = e.newPosition;
-                    pathLine.To = character.MovementTarget;
-                }
-            }  
-        }
-
-        private void SetDrawPaths()
-        {
-            if (_drawCharacterPaths)
-            {
-                PlayerController.Get.PlayerCharacter.Movement.OnEntityMovement += UpdateGizmoPos;
-                pathLine = new Line(PlayerController.Get.PlayerCharacter.Position, PlayerController.Get.PlayerCharacter.Movement.MovementTarget);
-            }
-            else
-            {
-                PlayerController.Get.PlayerCharacter.Movement.OnEntityMovement -= UpdateGizmoPos;
-                pathLine = null;
+                DrawUtils.DrawLineToWorld(PlayerController.Get.PlayerCharacter.Position, PlayerController.Get.PlayerCharacter.Movement.MovementTarget, characterPathColor);
             }
         }
     }

@@ -205,7 +205,7 @@ namespace Nebula.Runtime
             if (Debug.Enabled)
             {
                 Vector2 screenPos = new Vector2(Graphics.RENDER_WIDTH/2,5);
-                DrawUtils.DrawText("DEBUG MODE",screenPos,Color.Yellow,1.5f);
+                DrawUtils.DrawTextToScreen("DEBUG MODE",screenPos,Color.Yellow,1.5f);
             }
         }
     }

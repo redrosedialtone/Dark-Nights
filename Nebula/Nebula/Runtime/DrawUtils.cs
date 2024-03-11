@@ -126,12 +126,22 @@ namespace Nebula.Runtime
 
         public static void DrawText(SpriteFont spriteFont, string text, Vector2 position, Color color, float layer)
         {
-            DrawText(uiBatch, spriteFont, text, position, color, 0f, Vector2.Zero, 1.0f, SpriteEffects.None, 1.0f);
+            DrawText(spriteBatch, spriteFont, text, position, color, 0f, Vector2.Zero, 1.0f, SpriteEffects.None, 1.0f);
         }
 
         public static void DrawText(string text, Vector2 position, Color color, float scale = 1f)
         {
+            DrawText(spriteBatch, defaultFont, text, position, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 1.0f);
+        }
+
+        public static void DrawTextToScreen(string text, Vector2 position, Color color, float scale = 1f)
+        {
             DrawText(uiBatch, defaultFont, text, position, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 1.0f);
+        }
+
+        public static void DrawTextToScreen(SpriteFont spriteFont, string text, Vector2 position, Color color, float layer)
+        {
+            DrawText(uiBatch, spriteFont, text, position, color, 0f, Vector2.Zero, 1.0f, SpriteEffects.None, 1.0f);
         }
 
         private static void DrawText(SpriteBatch batch, SpriteFont spriteFont, string text, Vector2 position, Color color, float rotation, Vector2 origin, float scale, SpriteEffects effects, float layer)

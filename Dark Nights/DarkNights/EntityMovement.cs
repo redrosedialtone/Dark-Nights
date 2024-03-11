@@ -23,18 +23,25 @@ namespace DarkNights
     public class EntityMovement
     {
         public Vector2 Position { get; protected set; }
+        public Vector2 Facing { get;protected set; }
+        public float Rotation { get; protected set; }
         public Coordinates Coordinates { get; protected set; }
+        public int Clearance { get; set; }
 
         public Vector2 MovementTarget { get; protected set; }
         public NavPath MovementPath;
-        public Vector2? nextNode;
+        public Vector2? CurrentMovement;
+        public Vector2? NextMovement { get 
+            {
+                if (MovementPath != null && !MovementPath.invalid) return MovementPath.tilePath.Peek();
+                return null;
+            } }
         public bool IsMoving { get; protected set; }
         public bool MovementCompleted { get; protected set; }
 
         public float BaseSpeed = 4.75f * Defs.UnitPixelSize;
 
         public event EventHandler<EntityMovementArgs> OnEntityMovement = delegate { };
-
 
         public void SetPosition(Vector2 Position)
         {
@@ -43,13 +50,25 @@ namespace DarkNights
             OnEntityMovement(this, new EntityMovementArgs(Position));
         }
 
+        public void SetRotation(float Rotation)
+        {
+            this.Rotation = Rotation;
+        }
+
+        private void SetFacing(Vector2 dir)
+        {
+            if (dir == Vector2.Zero) return;
+            Facing = dir;
+            Rotation = MathF.Atan2(dir.X, -dir.Y);
+        }
+
         public void MoveTo(Vector2 Target)
         {
             if (MovementPath != null) MovementPath.Finish();
 
-            MovementPath = NavSys.Path(Position, Target);
+            MovementPath = NavSys.Path(Position, Target, Clearance);
 
-            if (MovementPath != null)
+            if (MovementPath != null && !MovementPath.Completed)
             {
                 this.MovementTarget = Target;
                 MovementCompleted = false;
@@ -70,8 +89,9 @@ namespace DarkNights
 
                     float travel = BaseSpeed * delta;
 
-                    if (deltaMovement.Length() <= travel) { nextPosition = destination; nextNode = null; }
+                    if (deltaMovement.Length() <= travel) { nextPosition = destination; CurrentMovement = null; }
                     else nextPosition += Vector2.Normalize(deltaMovement) * travel;
+                    SetFacing(deltaMovement);
                 }
                 SetPosition(nextPosition);
                 if (Coordinates == MovementTarget) MovementTargetReached();
@@ -82,15 +102,15 @@ namespace DarkNights
         {
             get
             {
-                if (nextNode != null) return nextNode;
+                if (CurrentMovement != null) return CurrentMovement;
                 if (MovementPath != null)
                 {
                     if (MovementPath.Completed)
                     {
                         return MovementTarget;
                     }
-                    nextNode = MovementPath.Next(Coordinates);
-                    return nextNode;
+                    CurrentMovement = MovementPath.Next(Coordinates);
+                    return CurrentMovement;
                 }
                 return null;
             }

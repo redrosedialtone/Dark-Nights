@@ -8,6 +8,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using System.Reflection;
+using System.Xml.Linq;
+using System.Reflection.Emit;
 
 namespace DarkNights
 {
@@ -22,16 +24,13 @@ namespace DarkNights
         public bool DrawPaths { get { return _drawPaths; } set { _drawPaths = value; } }
         private bool _drawPaths = false;
 
+        public bool DrawClusterEdges { get; set; }
         public bool DrawClusters { get; set; }
-
-        public bool DrawInterEdges { get; set; }
-        public bool DrawRegionBounds { get; set; }
-        public bool DrawRegionEdges { get; set; }
-
+        public bool DrawClearance { get; set; }
 
         private Color inactivePathColor = new Color(25, 25, 25, 25);
-        private Color activePathColor = new Color(40, 40, 40, 40);
-        private Color nextPathColor = new Color(90, 90, 90, 90);
+        private Color activePathColor = new Color(40, 40, 60, 40);
+        private Color nextPathColor = new Color(125, 90, 90, 90);
         private Color[] clusterLevelColor = new Color[] { new Color(0.1f, 0.1f, 0.5f, 0.2f), new Color(0.1f, 0.5f, 0.1f, 0.2f), new Color(0.5f, 0.1f, 0.1f, 0.2f) };
 
         public NavigationGizmo()
@@ -44,12 +43,11 @@ namespace DarkNights
 
         public void Draw()
         {
+            Vector2 pos = Camera.ScreenToWorld(Cursor.Position);
+            var curCluster = NavSys.Get.GetCluster(pos, 0);
+
             if (_drawNodes)
             {
-                Vector2 pos = Camera.ScreenToWorld(Cursor.Position);
-
-                var curCluster = NavSys.Get.Cluster(pos, 0);
-
                 foreach (var cluster in NavSys.Get.ClustersInRadius(pos, drawNodesRadius))
                 {
                     Color debugColor;
@@ -64,31 +62,35 @@ namespace DarkNights
                             float length = Vector2.Distance(pos, node.Coordinates);
                             if (length > drawNodesRadius) continue;
                             DrawNode(node, 1.0f - (length / drawNodesRadius));
-                            if (node.Neighbours != null)
+                            if (DrawClusterEdges)
                             {
-                                foreach (var neighbour in node.Neighbours)
+                                if (node.Neighbours != null)
                                 {
-                                    var drawColor = Color.White;
-                                    if (neighbour == null) continue;
-                                    float alpha = 1.0f - (length / drawNodesRadius) * 0.5f;
-                                    float thickness = 3.5f;
-
-                                    if (curCluster.Contains(neighbour.Coordinates))
+                                    foreach (var neighbour in node.Neighbours)
                                     {
-                                        if (cluster.Contains(neighbour.Coordinates)) { drawColor = debugColor; alpha *= 2.0f; }
-                                        else drawColor = Color.Red;
-                                        if (cluster.Depth != curCluster.Depth) thickness = 2.5f;
+                                        var drawColor = Color.White;
+                                        if (neighbour == null) continue;
+                                        float alpha = 1.0f - (length / drawNodesRadius) * 0.5f;
+                                        float thickness = 3.5f;
 
+                                        if (curCluster.Contains(neighbour.Coordinates))
+                                        {
+                                            if (cluster.Contains(neighbour.Coordinates)) { drawColor = debugColor; alpha *= 2.0f; }
+                                            else drawColor = Color.Red;
+                                            if (cluster.Depth != curCluster.Depth) thickness = 2.5f;
+
+                                        }
+                                        else
+                                        {
+                                            if (cluster.Contains(neighbour.Coordinates)) drawColor = Color.Blue;
+                                            else drawColor = Color.Red;
+                                            if (cluster.Depth != curCluster.Depth) thickness = 2.5f;
+                                        }
+                                        DrawUtils.DrawLineToWorld(Coordinates.Centre(node.Coordinates), Coordinates.Centre(neighbour.Coordinates), Color.Multiply(drawColor, alpha), thickness);
                                     }
-                                    else
-                                    {
-                                        if (cluster.Contains(neighbour.Coordinates)) drawColor = Color.Blue;
-                                        else drawColor = Color.Red;
-                                        if (cluster.Depth != curCluster.Depth) thickness = 2.5f;
-                                    }
-                                    DrawUtils.DrawLineToWorld(Coordinates.Centre(node.Coordinates), Coordinates.Centre(neighbour.Coordinates), Color.Multiply(drawColor, alpha), thickness);
                                 }
                             }
+
                         }
                     }
                     foreach (var node in cluster.Nodes)
@@ -96,31 +98,34 @@ namespace DarkNights
                         float length = Vector2.Distance(pos, node.Coordinates);
                         if (length > drawNodesRadius) continue;
                         DrawNode(node, 1.0f - (length / drawNodesRadius));
-                        if (node.Neighbours != null)
+                        if (DrawClusterEdges)
                         {
-                            foreach (var neighbour in node.Neighbours)
+                            if (node.Neighbours != null)
                             {
-                                if (neighbour == null) continue;
-                                float alpha = 1.0f - (length / drawNodesRadius) * 0.5f;
-                                var color = Color.White;
-                                float thickness = 3.5f;
-
-                                if (curCluster.Contains(neighbour.Coordinates))
+                                foreach (var neighbour in node.Neighbours)
                                 {
-                                    if (cluster.Contains(neighbour.Coordinates)) color = Color.Green;
-                                    else color = Color.Red;
-                                    if (cluster.Depth != curCluster.Depth) thickness = 2.5f;
+                                    if (neighbour == null) continue;
+                                    float alpha = 1.0f - (length / drawNodesRadius) * 0.5f;
+                                    var color = Color.White;
+                                    float thickness = 3.5f;
 
+                                    if (curCluster.Contains(neighbour.Coordinates))
+                                    {
+                                        if (cluster.Contains(neighbour.Coordinates)) color = Color.Green;
+                                        else color = Color.Red;
+                                        if (cluster.Depth != curCluster.Depth) thickness = 2.5f;
+
+                                    }
+                                    else
+                                    {
+                                        if (cluster.Contains(neighbour.Coordinates)) color = Color.Blue;
+                                        else color = Color.Red;
+                                        if (cluster.Depth != curCluster.Depth) thickness = 2.5f;
+                                    }
+                                    DrawUtils.DrawLineToWorld(Coordinates.Centre(node.Coordinates), Coordinates.Centre(neighbour.Coordinates), Color.Multiply(color, alpha), thickness);
                                 }
-                                else
-                                {
-                                    if (cluster.Contains(neighbour.Coordinates)) color = Color.Blue;
-                                    else color = Color.Red;
-                                    if (cluster.Depth != curCluster.Depth) thickness = 2.5f;
-                                }
-                                DrawUtils.DrawLineToWorld(Coordinates.Centre(node.Coordinates), Coordinates.Centre(neighbour.Coordinates), Color.Multiply(color, alpha), thickness);
                             }
-                        }
+                        }              
                     }
                 }
 
@@ -139,56 +144,73 @@ namespace DarkNights
                 {
                     if (character.MovementPath.tilePath != null)
                     {
+                        var prev = character.MovementPath.tilePath.FirstOrDefault();
                         foreach (var node in character.MovementPath.tilePath)
                         {
-                            DrawUtils.DrawRectangleToWorld(node, Defs.UnitPixelSize, Defs.UnitPixelSize, node == character.nextNode ? nextPathColor : activePathColor);
+                            DrawUtils.DrawLineToWorld(Coordinates.Centre(prev), Coordinates.Centre(node), node == character.NextMovement ? nextPathColor : activePathColor,3);
+                            DrawUtils.DrawRectangleToWorld(node, Defs.UnitPixelSize, Defs.UnitPixelSize, node == character.NextMovement ? nextPathColor : activePathColor);
+                            prev = node;
                         }
                     }
                     else if(character.MovementPath.abstractPath != null)
                     {
+                        var prev = character.MovementPath.abstractPath.FirstOrDefault();
                         foreach (var node in character.MovementPath.abstractPath)
                         {
-                            DrawUtils.DrawRectangleToWorld(node.Coordinates, Defs.UnitPixelSize, Defs.UnitPixelSize, node.Coordinates == character.nextNode ? nextPathColor : activePathColor);
+                            DrawUtils.DrawLineToWorld(Coordinates.Centre(prev.Coordinates), Coordinates.Centre(node.Coordinates), node.Coordinates == character.NextMovement ? nextPathColor : activePathColor,3);
+                            DrawUtils.DrawRectangleToWorld(node.Coordinates, Defs.UnitPixelSize, Defs.UnitPixelSize, node.Coordinates == character.NextMovement ? nextPathColor : activePathColor);
+                            prev = node;
+                        }
+                    }
+                    if (character.MovementPath.lastPath != null)
+                    {
+                        var prev = character.MovementPath.lastPath.FirstOrDefault();
+                        foreach (var inactiveNode in character.MovementPath.lastPath)
+                        {
+                            DrawUtils.DrawLineToWorld(Coordinates.Centre(prev), Coordinates.Centre(inactiveNode), inactivePathColor,3);
+                            DrawUtils.DrawRectangleToWorld(inactiveNode, Defs.UnitPixelSize, Defs.UnitPixelSize, inactivePathColor);
+                            prev = inactiveNode;
                         }
                     }
 
-                    foreach (var inactiveNode in character.MovementPath.lastPath)
-                    {
-                        DrawUtils.DrawRectangleToWorld(inactiveNode, Defs.UnitPixelSize, Defs.UnitPixelSize, inactivePathColor);
-                    }
                 }
             }
             if (DrawClusters)
             {
-                for (int level = 0; level < NavSys.Get.clusters.Length; level++)
+                var color = clusterLevelColor[0];
+                foreach (var clusterKv in NavSys.Get.ClusterGraph)
                 {
-                    var color = clusterLevelColor[level];
-                    foreach (var clusterKv in NavSys.Get.clusters[level])
-                    {
-                        var cluster = clusterKv.Value;
-                        Vector2[] corners = new Vector2[4];
+                    var cluster = clusterKv.Value;
+                    Vector2[] corners = new Vector2[4];
 
-                        corners[0] = new Coordinates(0, 0);
-                        corners[1] = new Coordinates(cluster.Size, 0);
-                        corners[2] = new Coordinates(cluster.Size, cluster.Size);
-                        corners[3] = new Coordinates(0, cluster.Size);
+                    corners[0] = new Coordinates(0, 0);
+                    corners[1] = new Coordinates(cluster.Size, 0);
+                    corners[2] = new Coordinates(cluster.Size, cluster.Size);
+                    corners[3] = new Coordinates(0, cluster.Size);
 
-                        int offset = NavSys.Get.clusters.Length - level;
+                    int offset = cluster.Depth;
 
-                        corners[0] += new Vector2(5f, 5f) * offset;
-                        corners[1] += new Vector2(-5f, 5f) * offset;
-                        corners[2] += new Vector2(-5f, -5f) * offset;
-                        corners[3] += new Vector2(5f, -5f) * offset;
+                    corners[0] += new Vector2(5f, 5f) * offset;
+                    corners[1] += new Vector2(-5f, 5f) * offset;
+                    corners[2] += new Vector2(-5f, -5f) * offset;
+                    corners[3] += new Vector2(5f, -5f) * offset;
 
-                        var polygon = new Polygon(corners, cluster.Origin);
+                    var polygon = new Polygon(corners, cluster.Origin);
 
-                        DrawUtils.DrawPolygonOutlineToWorld(polygon, color, 3.0f);
-                    }
+                    DrawUtils.DrawPolygonOutlineToWorld(polygon, color, 3.0f);
                 }
             }
-            if (DrawInterEdges)
+            if (DrawClearance && curCluster != null)
             {
+                foreach (var tile in curCluster.Tiles())
+                {
+                    int x = tile.X - curCluster.Minimum.X;
+                    int y = tile.Y - curCluster.Minimum.Y;
+                    int clearance = curCluster.Clearance[x][y];
+                    int traversability = curCluster.Traversability[x][y];
 
+                    DrawUtils.DrawText($"({clearance},{traversability})", tile, Color.Black, 0.5f);
+                }
             }
         }
 
