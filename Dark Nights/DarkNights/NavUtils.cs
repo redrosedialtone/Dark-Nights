@@ -137,6 +137,7 @@ namespace DarkNights
         public Vector2 Next(Vector2 current)
         {
             Vector2 next = previous;
+            if (Completed) return current;
             if(tilePath.Count == 0)
             {
                 if (invalid) Finish();
@@ -168,6 +169,13 @@ namespace DarkNights
             lastPath.Push(next);
             previous = next;
             return next;
+        }
+
+        public void Clear()
+        {
+            tilePath?.Clear();
+            abstractPath?.Clear();
+            Finish();
         }
 
         public void Finish()

@@ -139,41 +139,44 @@ namespace DarkNights
             }
             if (_drawPaths)
             {
-                var character = PlayerController.Get.PlayerCharacter.Movement;
-                if (character.MovementPath != null)
+                foreach (var character in PlayerController.Get.Characters)
                 {
-                    if (character.MovementPath.tilePath != null)
+                    if (character.Movement.MovementPath != null)
                     {
-                        var prev = character.MovementPath.tilePath.FirstOrDefault();
-                        foreach (var node in character.MovementPath.tilePath)
+                        var path = character.Movement.MovementPath;
+                        if (path.tilePath != null)
                         {
-                            DrawUtils.DrawLineToWorld(Coordinates.Centre(prev), Coordinates.Centre(node), node == character.NextMovement ? nextPathColor : activePathColor,3);
-                            DrawUtils.DrawRectangleToWorld(node, Defs.UnitPixelSize, Defs.UnitPixelSize, node == character.NextMovement ? nextPathColor : activePathColor);
-                            prev = node;
+                            var prev = path.tilePath.FirstOrDefault();
+                            foreach (var node in path.tilePath)
+                            {
+                                DrawUtils.DrawLineToWorld(Coordinates.Centre(prev), Coordinates.Centre(node), node == character.Movement.NextMovement ? nextPathColor : activePathColor, 3);
+                                DrawUtils.DrawRectangleToWorld(node, Defs.UnitPixelSize, Defs.UnitPixelSize, node == character.Movement.NextMovement ? nextPathColor : activePathColor);
+                                prev = node;
+                            }
                         }
-                    }
-                    else if(character.MovementPath.abstractPath != null)
-                    {
-                        var prev = character.MovementPath.abstractPath.FirstOrDefault();
-                        foreach (var node in character.MovementPath.abstractPath)
+                        else if (path.abstractPath != null)
                         {
-                            DrawUtils.DrawLineToWorld(Coordinates.Centre(prev.Coordinates), Coordinates.Centre(node.Coordinates), node.Coordinates == character.NextMovement ? nextPathColor : activePathColor,3);
-                            DrawUtils.DrawRectangleToWorld(node.Coordinates, Defs.UnitPixelSize, Defs.UnitPixelSize, node.Coordinates == character.NextMovement ? nextPathColor : activePathColor);
-                            prev = node;
+                            var prev = path.abstractPath.FirstOrDefault();
+                            foreach (var node in path.abstractPath)
+                            {
+                                DrawUtils.DrawLineToWorld(Coordinates.Centre(prev.Coordinates), Coordinates.Centre(node.Coordinates), node.Coordinates == character.Movement.NextMovement ? nextPathColor : activePathColor, 3);
+                                DrawUtils.DrawRectangleToWorld(node.Coordinates, Defs.UnitPixelSize, Defs.UnitPixelSize, node.Coordinates == character.Movement.NextMovement ? nextPathColor : activePathColor);
+                                prev = node;
+                            }
                         }
-                    }
-                    if (character.MovementPath.lastPath != null)
-                    {
-                        var prev = character.MovementPath.lastPath.FirstOrDefault();
-                        foreach (var inactiveNode in character.MovementPath.lastPath)
+                        if (path.lastPath != null)
                         {
-                            DrawUtils.DrawLineToWorld(Coordinates.Centre(prev), Coordinates.Centre(inactiveNode), inactivePathColor,3);
-                            DrawUtils.DrawRectangleToWorld(inactiveNode, Defs.UnitPixelSize, Defs.UnitPixelSize, inactivePathColor);
-                            prev = inactiveNode;
+                            var prev = path.lastPath.FirstOrDefault();
+                            foreach (var inactiveNode in path.lastPath)
+                            {
+                                DrawUtils.DrawLineToWorld(Coordinates.Centre(prev), Coordinates.Centre(inactiveNode), inactivePathColor, 3);
+                                DrawUtils.DrawRectangleToWorld(inactiveNode, Defs.UnitPixelSize, Defs.UnitPixelSize, inactivePathColor);
+                                prev = inactiveNode;
+                            }
                         }
-                    }
 
-                }
+                    }
+                }              
             }
             if (DrawClusters)
             {

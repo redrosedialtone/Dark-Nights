@@ -14,6 +14,7 @@ namespace DarkNights
         Vector2 Position { get; set; }
         float Rotation { get; set; }
         Coordinates Coordinates => Position;
+        (Coordinates min, Coordinates max) Bounds { get; }
         Sprite2D Sprite { get; }
     }
 
@@ -22,6 +23,7 @@ namespace DarkNights
         public string Name { get; protected set; }
         public float Rotation { get; set; }
         public Coordinates Coordinates => Position;
+        public (Coordinates min, Coordinates max) Bounds => (this.Coordinates, this.Coordinates);
         public Vector2 Position { get; set; }
         public Sprite2D Sprite { get; protected set; }
     }

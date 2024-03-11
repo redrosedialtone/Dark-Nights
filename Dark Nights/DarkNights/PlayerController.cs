@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using DarkNights.Tasks;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Nebula;
 using Nebula.Main;
@@ -26,10 +27,11 @@ namespace DarkNights
 
         #endregion
 
-        public Character PlayerCharacter;
+        public List<Character> Characters;
         public List<Wall> Walls = new List<Wall>();
         public Action<Wall> OnWallBuilt;
 
+        public Character selectedCharacter;
         private CharacterGizmo characterGizmo;
         private EntityGizmo entityGizmo;
 
@@ -37,7 +39,6 @@ namespace DarkNights
         {
             log.Info("> ...");
             instance = this;
-            PlayerCharacter = new Character((0, 0));
 
             CharacterControlCtxt ctxt = new CharacterControlCtxt();
             Input.Get.AddContext(ctxt);
@@ -59,18 +60,36 @@ namespace DarkNights
             entityGizmo = new EntityGizmo();
             entityGizmo.Enabled = true;
             entityGizmo.DrawWalls = true;
+
+            Character Jerry = new Character("Jerry", new Coordinates(10, 10));
+            Character Jones = new Character("Jones", new Coordinates(15, 10));
+            Characters = new List<Character>() { Jerry, Jones };
+
+            TaskSystem.Worker(Jerry);
+            TaskSystem.Worker(Jones);
+
+            EntityController.Get.PlaceEntityInWorld(new Hammer(new Coordinates(12, 12)));
+            EntityController.Get.PlaceEntityInWorld(new Axe(new Coordinates(14, 12)));
+
         }
 
         public override void Tick()
         {
             base.Tick();
-            PlayerCharacter.Tick();
+            foreach (var character in Characters)
+            {
+                character.Tick();
+            }
         }
 
         public override void Draw()
         {
             base.Draw();
-            SpriteBatchRenderer.Get.DrawSprite(PlayerCharacter.Sprite, PlayerCharacter.Position, PlayerCharacter.Rotation);
+            foreach (var character in Characters)
+            {
+                SpriteBatchRenderer.Get.DrawSprite(character.Sprite, character.Position, character.Rotation);
+            }
+            
         }
 
         public void OnMovementAxis(Vector2 movementAxis)
@@ -97,18 +116,42 @@ namespace DarkNights
         private Coordinates _lastMovePos;
         public void OnClick(MouseButtonActionState Data)
         {
+            if (!(Data.PressedThisFrame())) return;
             if (Data.ID == "InputID.LeftMouseButton")
             {
-                if (PlayerCharacter != null)
-                {
-                    Coordinates mousePos = Camera.ScreenToWorld(new Vector2(Data.mousePosition.X, Data.mousePosition.Y));
-                    if (mousePos != _lastMovePos)
-                    {
-                        PlayerCharacter.Movement.MoveTo(mousePos);
-                        log.Info($"Moving Player Character::{PlayerCharacter.Position}");
-                        _lastMovePos = mousePos;
-                    }
+                Coordinates mousePos = Camera.ScreenToWorld(new Vector2(Data.mousePosition.X, Data.mousePosition.Y));
 
+                // Select a character under the mouse cursor
+                if (CharacterAtPosition(mousePos, out Character character))
+                {
+                    selectedCharacter = character;
+                    log.Info($"Selected Character::{selectedCharacter.Name}");
+                }
+                // Pick up an item
+                else if (selectedCharacter != null && EntityController.Get.GetEntity<IItem>(mousePos, out IItem item))
+                {
+                    log.Info($"Adding Pickup Order for {item.Name} to {selectedCharacter.Name} @ {mousePos}");
+                    PickUpItemTask task = new PickUpItemTask(item.Coordinates, item, selectedCharacter.Inventory);
+                    TaskSystem.Assign(task, selectedCharacter, TaskAssignmentMethod.DEFAULT);
+                }              
+                else if (mousePos != _lastMovePos)
+                {
+                    // Move the selected character
+                    if (selectedCharacter != null)
+                    {
+                        log.Info($"Force Moving {selectedCharacter.Name} to::{mousePos}");
+                        MoveToWaypointTask moveTo = new MoveToWaypointTask(mousePos);
+                        TaskSystem.Assign(moveTo, selectedCharacter, TaskAssignmentMethod.INTERRUPT);
+                    }
+                    // Move any character.
+                    else
+                    {
+                        log.Info($"Adding Move Order To::{mousePos}");
+                        MoveToWaypointTask moveTo = new MoveToWaypointTask(mousePos);
+                        TaskSystem.Delegate(moveTo);
+                    }
+                    selectedCharacter = null;
+                    _lastMovePos = mousePos;
                 }
             }
             else if (Data.ID == "InputID.RightMouseButton")
@@ -116,12 +159,28 @@ namespace DarkNights
                 Coordinates mousePos = Camera.ScreenToWorld(new Vector2(Data.mousePosition.X, Data.mousePosition.Y));
                 if (mousePos != _lastWallPos)
                 {
+                    log.Info($"Building Wall @ ::{mousePos}");
                     AddWall(mousePos);
                     _lastWallPos = mousePos;
                 }
 
             }
             
+        }
+
+        public bool CharacterAtPosition(Coordinates Coordinates, out Character ret)
+        {
+            ret = null;
+            foreach (var character in Characters)
+            {
+                if(Coordinates.X >= character.Coordinates.X && Coordinates.Y >= character.Coordinates.Y &&
+                    Coordinates.X <= character.Bounds.max.X && Coordinates.Y <= character.Bounds.max.Y)
+                {
+                    ret = character;
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void AddWall(Coordinates Coordinates)
@@ -144,6 +203,9 @@ namespace DarkNights
         private bool _drawCharacterPaths = false;
         private Color characterPathColor => new Color(225, 225, 225, 225);
 
+        public bool drawCharacterNames = true;
+        private Color selectedCharacterColor => new Color(225, 75, 125, 225);
+
         public CharacterGizmo()
         {
             Debug.NewWorldGizmo(this);
@@ -157,15 +219,30 @@ namespace DarkNights
 
         public void Draw()
         {
-            var player = PlayerController.Get.PlayerCharacter;
             if (_drawCharacters)
             {
-                Vector2 pos = player.Coordinates;
-                DrawUtils.DrawPolygonOutlineToWorld(new Rectangle((int)pos.X, (int)pos.Y, 64,64), characterOutlineColor);
+                foreach (var character in PlayerController.Get.Characters)
+                {
+                    Vector2 pos = character.Coordinates;
+                    Color color = character == PlayerController.Get.selectedCharacter ? selectedCharacterColor : characterOutlineColor;
+;                   DrawUtils.DrawPolygonOutlineToWorld(new Rectangle((int)pos.X, (int)pos.Y, 64, 64), color);
+                }
+
             }
             if (_drawCharacterPaths)
             {
-                DrawUtils.DrawLineToWorld(PlayerController.Get.PlayerCharacter.Position, PlayerController.Get.PlayerCharacter.Movement.MovementTarget, characterPathColor);
+                foreach (var character in PlayerController.Get.Characters)
+                {
+                    DrawUtils.DrawLineToWorld(character.Position, character.Movement.MovementTarget, characterPathColor);
+                }
+            }
+            if (drawCharacterNames)
+            {
+                foreach (var character in PlayerController.Get.Characters)
+                {
+                    Color color = character == PlayerController.Get.selectedCharacter ? selectedCharacterColor : Color.Yellow;
+                    DrawUtils.DrawText(character.Name, character.Position, color);
+                }
             }
         }
     }

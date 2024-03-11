@@ -74,7 +74,7 @@ namespace DarkNights.WorldGeneration
                 if (tIndx >= 50) break;
             }
 
-            EntityController.Get.PlaceEntities(trees);
+            EntityController.Get.PlaceEntitiesInWorld(trees);
         }
 
         public float MatchConditions(BiomeConditions conditions)

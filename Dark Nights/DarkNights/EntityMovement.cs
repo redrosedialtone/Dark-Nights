@@ -42,6 +42,7 @@ namespace DarkNights
         public float BaseSpeed = 4.75f * Defs.UnitPixelSize;
 
         public event EventHandler<EntityMovementArgs> OnEntityMovement = delegate { };
+        private Action cbOnMovementEnd;
 
         public void SetPosition(Vector2 Position)
         {
@@ -62,6 +63,21 @@ namespace DarkNights
             Rotation = MathF.Atan2(dir.X, -dir.Y);
         }
 
+        public void Stop(Action cbStopEvent)
+        {
+            this.cbOnMovementEnd = cbStopEvent;
+            if (MovementPath != null)
+            {
+                MovementPath.Clear();
+                MovementTarget = Position;
+            }
+            else
+            {
+                cbStopEvent();
+            }
+
+        }
+
         public void MoveTo(Vector2 Target)
         {
             if (MovementPath != null) MovementPath.Finish();
@@ -76,7 +92,7 @@ namespace DarkNights
             }
         }
 
-        public void Move(float delta)
+        public void Tick(float delta)
         {
             if (IsMoving)
             {
@@ -94,7 +110,7 @@ namespace DarkNights
                     SetFacing(deltaMovement);
                 }
                 SetPosition(nextPosition);
-                if (Coordinates == MovementTarget) MovementTargetReached();
+                if (Position == MovementTarget) MovementTargetReached();
             }
         }
 
@@ -121,6 +137,7 @@ namespace DarkNights
             IsMoving = false;
             Position = MovementTarget;
             MovementCompleted = true;
+            MovementPath?.Finish();
             MovementPath = null;
         }
 

@@ -241,7 +241,7 @@ namespace Nebula.Main
             {
                 ActiveCtxt.Add(name, ctxt);
                 InactiveCtxt.Remove(name);
-                log.Trace($"InputCtxt {name} enabled.");
+                log.Info($"InputCtxt {name} enabled.");
             }
             else log.Debug($"InputCtxt {name} not inactive!");
         }
@@ -252,7 +252,7 @@ namespace Nebula.Main
             {
                 InactiveCtxt.Add(name, ctxt);
                 ActiveCtxt.Remove(name);
-                log.Trace($"InputCtxt {name} disabled.");
+                log.Info($"InputCtxt {name} disabled.");
             }
             else log.Debug($"InputCtxt {name} not active!");
         }

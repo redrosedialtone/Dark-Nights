@@ -15,7 +15,7 @@ namespace DarkNights
         public Coordinates Min => Origin;
         public Coordinates Max => new(Origin.X + Size.X, Origin.Y + Size.Y);
 
-        public List<IEntity> Terrain { get; private set; } = new List<IEntity>();
+        public List<IEntity> Entities { get; private set; } = new List<IEntity>();
 
         public Chunk(Coordinates Origin)
         {
@@ -24,17 +24,21 @@ namespace DarkNights
 
         public void Draw()
         {
-            foreach (var entity in Terrain)
+            foreach (var entity in Entities)
             {
                 SpriteBatchRenderer.Get.DrawSprite(entity.Sprite, entity.Position);
             }
         }
 
-        public void AddTerrain(IEntity entity)
+        public void AddEntity(IEntity entity)
         {
-            Terrain.Add(entity);
+            Entities.Add(entity);
         }
 
+        public void RemoveEntity(IEntity entity)
+        {
+            Entities.Remove(entity);
+        }
 
         public IEnumerable<Coordinates> Tiles()
         {
