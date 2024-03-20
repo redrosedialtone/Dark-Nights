@@ -3,40 +3,10 @@ using Microsoft.Xna.Framework.Graphics;
 using Nebula.Main;
 using Nebula.Runtime;
 using System;
+using System.Reflection.Emit;
 
 namespace Nebula
 {
-    public class Sprite2D
-    {
-        public Texture2D Texture { get; private set; }
-        public Vector2 Pivot { get; private set; }
-        public Rectangle SourceRect { get; private set; }
-
-        public Sprite2D(Texture2D texture, Rectangle sourceRect)
-        {
-            Texture = texture;
-            SourceRect = sourceRect;
-            Pivot = Vector2.Zero;
-        }
-
-        public Sprite2D(Texture2D texture, Rectangle sourceRect, Vector2 pivot)
-        {
-            Texture = texture;
-            SourceRect = sourceRect;
-            Pivot = pivot;
-        }
-
-        public Vector2 WidthHeightToVector2()
-        {
-            Vector2 widthheight = Vector2.Zero;
-
-            widthheight.X = SourceRect.Width;
-            widthheight.Y = SourceRect.Height;
-
-            return widthheight;
-        }
-    }
-
     public class SpriteBatchRenderer : IControl
 	{
         #region Singleton

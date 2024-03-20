@@ -398,7 +398,7 @@ namespace DarkNights.Tasks
 
         public override void Execute()
         {
-            if (Inventory.PickupItem(Item))
+            if (Inventory.AttemptItemPickup(Item))
             {
                 SetStatus(ITaskStatus.Success);
             }

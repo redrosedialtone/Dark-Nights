@@ -10,12 +10,25 @@ namespace DarkNights
 {
     public interface IItem : IEntity
     {
+        public bool IsInInventory { get; }
 
+        void MoveToInventory(EntityInventory Inventory);
+        void RemoveFromInventory(EntityInventory Inventory);
     }
 
     public abstract class ItemBase : EntityBase, IItem
     {
+        public bool IsInInventory { get; private set; }
 
+        public void MoveToInventory(EntityInventory Inventory)
+        {
+            IsInInventory = true;
+        }
+
+        public void RemoveFromInventory(EntityInventory Inventory)
+        {
+            IsInInventory = false;
+        }
     }
 
     public class Hammer : ItemBase

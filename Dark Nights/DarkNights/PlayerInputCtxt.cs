@@ -20,6 +20,7 @@ namespace DarkNights
         public Action<float> OnScroll;
         public Action<bool> OnLock;
         public Action<MouseButtonActionState> OnClick;
+        public Action<MouseButtonActionState> OnPress;
         public Action<MouseButtonActionState> OnRelease;
         private bool _movementUpdate = false;
         private bool _mouseDown = false;
@@ -112,23 +113,28 @@ namespace DarkNights
                 OnScroll?.Invoke(scrollY);
             }
 
-            if (Input.Active("InputID.LeftMouseButton") || Input.Active("InputID.RightMouseButton"))
-            {
-                MouseButtonActionState _leftMouseData = Input.Active("InputID.LeftMouseButton") ? (MouseButtonActionState)Input.Data("InputID.LeftMouseButton") : null;
-                MouseButtonActionState _rightMouseData = Input.Active("InputID.RightMouseButton") ? (MouseButtonActionState)Input.Data("InputID.RightMouseButton") : null;
+            MouseButtonActionState _leftMouseData = Input.Active("InputID.LeftMouseButton") ? (MouseButtonActionState)Input.Data("InputID.LeftMouseButton") : null;
+            MouseButtonActionState _rightMouseData = Input.Active("InputID.RightMouseButton") ? (MouseButtonActionState)Input.Data("InputID.RightMouseButton") : null;
 
-                _mouseDown = true;
-                if (_leftMouseData != null) OnClick?.Invoke(_leftMouseData);
-                if (_rightMouseData != null) OnClick?.Invoke(_rightMouseData);
-
-            }
-            else if (_mouseDown)
+            if (_leftMouseData != null)
             {
-                _mouseDown = false;
-                var _mouseData = (MouseButtonActionState)Input.Data("InputID.LeftMouseButton");
-                OnRelease?.Invoke(_mouseData);
+                if (_leftMouseData.PressedThisFrame())
+                {
+                    OnPress?.Invoke(_leftMouseData);
+                    if(_leftMouseData.availableForClick) OnClick?.Invoke(_leftMouseData);
+                }
+                else if (_leftMouseData.ReleasedThisFrame()) OnRelease?.Invoke(_leftMouseData);
             }
 
+            if (_rightMouseData != null)
+            {
+                if (_rightMouseData.PressedThisFrame())
+                {
+                    OnPress?.Invoke(_rightMouseData);
+                    if (_rightMouseData.availableForClick) OnClick?.Invoke(_rightMouseData);
+                }
+                else if (_rightMouseData.ReleasedThisFrame()) OnRelease?.Invoke(_rightMouseData);
+            }
         }
     }
 

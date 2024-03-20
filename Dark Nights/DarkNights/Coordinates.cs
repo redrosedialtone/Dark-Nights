@@ -33,6 +33,9 @@ namespace DarkNights
         public static Vector2 Centre(Coordinates Coordinate) =>
             new Vector2(Coordinate.X*Defs.UnitPixelSize + Defs.UnitPixelSize / 2, Coordinate.Y*Defs.UnitPixelSize + Defs.UnitPixelSize / 2);
 
+        public static implicit operator Coordinates(Point Coordinate) =>
+            new Coordinates(Coordinate.X, Coordinate.Y);
+
         public override string ToString()
         {
             return $"({X},{Y})";

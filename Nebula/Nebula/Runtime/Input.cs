@@ -21,6 +21,7 @@ namespace Nebula.Main
 
         public string ID { get; set; }
         public bool Active => buttonState == ButtonState.Pressed || buttonState != previousState;
+        public bool availableForClick => buttonData.elligibleForClick && buttonData.clickEvent == null && buttonData.pressedEvent == null;
 
         public MouseButtonActionState(string ID)
         {
@@ -45,9 +46,11 @@ namespace Nebula.Main
         public IPointerClickHandler clickEvent;
         public IPointerEnterHandler enterEvent;
         public IPointerExitHandler exitEvent;
+        public IPointerDragHandler dragEvent;
 
         public Point pressPosition;
         public bool elligibleForClick;
+        public bool dragging;
         public int clickCount;
         public float clickTime;
         public float delta;
@@ -319,6 +322,12 @@ namespace Nebula.Main
             log.Debug("Adding Listener.. " + Get.PointerListeners.Count);
         }
 
+        public static void RemovePointerEventListener(IPointerEventListener Listener)
+        {
+            Get.PointerListeners.Remove(Listener);
+            log.Debug("Removing Listener.. " + Get.PointerListeners.Count);
+        }
+
         private void ProcessMouseData()
         {
             PreviousMousePointerEventData = MousePointerEventData;
@@ -348,8 +357,11 @@ namespace Nebula.Main
 
             IPointerEventListener[] Events = listenersIntersectingCursor.ToArray();
             ProcessMouseButton(leftClickButtonData, Events);
+            ProcessDrag(leftClickButtonData);
             ProcessMouseButton(rightClickButtonData, Events);
+            ProcessDrag(rightClickButtonData);
             ProcessMouseButton(middleClickButtonData, Events);
+            ProcessDrag(middleClickButtonData);
 
             ProcessMouseOver(leftClickButtonData, Events);
         }
@@ -392,6 +404,13 @@ namespace Nebula.Main
                     pointerData.clickCount = 0;
                 }
 
+                IPointerDragHandler dragEvent = ExecuteEvents.GetEventListener<IPointerDragHandler>(Events, Data, ExecuteEvents.pointerDrag);
+                if (dragEvent != null)
+                {
+                    pointerData.dragEvent = dragEvent;
+                    //ExecuteEvents.ExecuteEvent(dragEvent, Data, ExecuteEvents.EventHandle.PointerBeginDrag);
+                }
+
                 pointerData.pressedEvent = pointerDownExecuted;
                 pointerData.clickEvent = clickEvent;
 
@@ -405,13 +424,20 @@ namespace Nebula.Main
                 {
                     ExecuteEvents.ExecuteHierarchy<IPointerClickHandler>(Events, Data, ExecuteEvents.pointerClick);
                 }
-                else
+                else if (pointerData.dragEvent != null)
                 {
+                    IPointerDropHandler dropevent = ExecuteEvents.ExecuteHierarchy<IPointerDropHandler>(Events, Data, ExecuteEvents.pointerDrop);
+                    if (pointerData.dragging)
+                    {
+                        ExecuteEvents.ExecuteEvent(pointerData.dragEvent, Data, ExecuteEvents.pointerEndDrag);
+                    }
                     pointerData.clickEvent = null;
                 }
 
                 pointerData.elligibleForClick = false;
                 pointerData.pressedEvent = null;
+                pointerData.dragging = false;
+                pointerData.dragEvent = null;
                 pointerData.releaseEvent = pointerUpExecuted;
             }
             log.Debug($"{Data.ID.ToString()}::{Data.buttonState.ToString()}");
@@ -439,6 +465,41 @@ namespace Nebula.Main
             pointerData.enterEvent = enterEvent;
             pointerData.exitEvent = exitEvent;
         }
+
+        private void ProcessDrag(MouseButtonActionState Data)
+        {
+            var pointerData = Data.buttonData;
+            if (pointerData.dragEvent == null) return;
+            if (!pointerData.dragging && ShouldStartDrag(pointerData.pressPosition.ToVector2(), Data.mousePosition.ToVector2(), dragThreshold, true))
+            {
+                ExecuteEvents.ExecuteEvent(pointerData.dragEvent, Data, ExecuteEvents.pointerBeginDrag);
+                pointerData.dragging = true;
+            }
+
+            if (pointerData.dragging)
+            {
+                // Before doing drag we should cancel any pointer down state
+                // And clear selection!
+                if (pointerData.pressedEvent != pointerData.dragEvent)
+                {
+                    ExecuteEvents.ExecuteEvent(pointerData.pressedEvent, Data, ExecuteEvents.pointerUp);
+
+                    pointerData.elligibleForClick = false;
+                    pointerData.pressedEvent = null;
+                }
+                ExecuteEvents.ExecuteEvent(pointerData.dragEvent, Data, ExecuteEvents.pointerDrag);
+            }
+        }
+
+        private int dragThreshold = 10;
+        private bool ShouldStartDrag(Vector2 pressPos, Vector2 currentPos, float threshold, bool useDragThreshold)
+        {
+            if (!useDragThreshold)
+                return true;
+
+            return (pressPos - currentPos).LengthSquared() >= threshold * threshold;
+        }
+
         #endregion
 
         //Keyboard Actions
