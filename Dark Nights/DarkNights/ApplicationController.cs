@@ -58,6 +58,7 @@ namespace DarkNights
             Systems = new Manager[]
             {
                 new AssetManager(),
+                new InterfaceController(),
                 new EntityController(),
                 new WorldSystem(),
                 new PlayerController(),

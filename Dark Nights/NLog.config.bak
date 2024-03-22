@@ -3,14 +3,14 @@
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	  throwConfigExceptions="true">
 
-	<!--- Nebula  --->
+
 	<variable name="RUNTIME" value="Trace" />
 	<variable name="GRAPHICS" value="Trace" />
 	<variable name="INPUT" value="Trace" />
 	<variable name="APPLICATION" value="Trace" />
 	<variable name="CAMERA" value="Info" />
 	
-	<!--- Dark Nights --->
+
 	<variable name="APPLICATION" value="Info" />
 	<variable name="ENTITY" value="Info" />
 	<variable name="NAVIGATION" value="Info" />
@@ -34,13 +34,13 @@
     </targets>
 
     <rules>
-		<!--- Nebula  --->
+
 		<logger name="RUNTIME" minlevel="${RUNTIME}" writeTo="asyncwrapper" />
 		<logger name="GRAPHICS" minlevel="${GRAPHICS}" writeTo="asyncwrapper" />
 		<logger name="INPUT" minlevel="${INPUT}" writeTo="asyncwrapper" />
 		<logger name="APPLICATION" minlevel="${APPLICATION}" writeTo="asyncwrapper" />
 		<logger name="CAMERA" minlevel="${CAMERA}" writeTo="asyncwrapper" />
-		<!--- Dark Nights --->
+
 		<logger name="APPLICATION" minlevel="${APPLICATION}" writeTo="asyncwrapper" />
 		<logger name="ENTITY" minlevel="${ENTITY}" writeTo="asyncwrapper" />
 		<logger name="NAVIGATION" minlevel="${NAVIGATION}" writeTo="asyncwrapper" />

@@ -61,7 +61,7 @@ namespace Nebula.Main
 
             Controls = new IControl[7];
             Controls[0] = Graphics.Get;
-            Controls[1] = new Interface();
+            Controls[1] = new UserInterface();
             Controls[2] = Input.Get;
             Controls[3] = Resources.Get;
             Controls[4] = new Cursor();

@@ -1,4 +1,5 @@
-﻿using DarkNights.Tasks;
+﻿using DarkNights.Interface;
+using DarkNights.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Nebula;
@@ -34,6 +35,7 @@ namespace DarkNights
         public Character selectedCharacter;
         private CharacterGizmo characterGizmo;
         private EntityGizmo entityGizmo;
+        private SelectionOverlay selectionOverlay;
 
         public override void Init()
         {
@@ -71,6 +73,8 @@ namespace DarkNights
             EntityController.Get.PlaceEntityInWorld(new Hammer(new Coordinates(12, 12)));
             EntityController.Get.PlaceEntityInWorld(new Axe(new Coordinates(14, 12)));
 
+            selectionOverlay = new SelectionOverlay();
+
         }
 
         public override void Tick()
@@ -89,7 +93,7 @@ namespace DarkNights
             {
                 SpriteBatchRenderer.Get.DrawSprite(character.Sprite, character.Position, character.Rotation);
             }
-            
+            selectionOverlay.Draw();
         }
 
         public void OnMovementAxis(Vector2 movementAxis)
@@ -116,7 +120,6 @@ namespace DarkNights
         private Coordinates _lastMovePos;
         public void OnClick(MouseButtonActionState Data)
         {
-            if (!(Data.PressedThisFrame())) return;
             if (Data.ID == "InputID.LeftMouseButton")
             {
                 Coordinates mousePos = Camera.ScreenToWorld(new Vector2(Data.mousePosition.X, Data.mousePosition.Y));
@@ -124,8 +127,7 @@ namespace DarkNights
                 // Select a character under the mouse cursor
                 if (CharacterAtPosition(mousePos, out Character character))
                 {
-                    selectedCharacter = character;
-                    log.Info($"Selected Character::{selectedCharacter.Name}");
+                    SelectCharacter(character);
                 }
                 // Pick up an item
                 else if (selectedCharacter != null && EntityController.Get.GetEntity<IItem>(mousePos, out IItem item))
@@ -150,22 +152,41 @@ namespace DarkNights
                         MoveToWaypointTask moveTo = new MoveToWaypointTask(mousePos);
                         TaskSystem.Delegate(moveTo);
                     }
-                    selectedCharacter = null;
                     _lastMovePos = mousePos;
                 }
             }
             else if (Data.ID == "InputID.RightMouseButton")
             {
-                Coordinates mousePos = Camera.ScreenToWorld(new Vector2(Data.mousePosition.X, Data.mousePosition.Y));
-                if (mousePos != _lastWallPos)
-                {
-                    log.Info($"Building Wall @ ::{mousePos}");
-                    AddWall(mousePos);
-                    _lastWallPos = mousePos;
-                }
-
+                SelectCharacter(null);
+                //Coordinates mousePos = Camera.ScreenToWorld(new Vector2(Data.mousePosition.X, Data.mousePosition.Y));
+                //if (mousePos != _lastWallPos)
+                //{
+                //    log.Info($"Building Wall @ ::{mousePos}");
+                //    AddWall(mousePos);
+                //    _lastWallPos = mousePos;
+                //}
             }
             
+        }
+
+        public void SelectCharacter(Character character)
+        {
+            if (selectedCharacter == character) return;
+
+            log.Info($"Selected Character::{selectedCharacter?.Name}");
+
+            selectedCharacter = character;
+            selectionOverlay.Select(selectedCharacter);
+
+            if (selectedCharacter != null)
+            {
+                InterfaceController.Get.OpenMenu(InterfaceMenus.InventoryMenu);
+                InterfaceController.Get.InventoryMenu.Set(selectedCharacter.Inventory);
+            }
+            else
+            {
+                InterfaceController.Get.CloseMenu(InterfaceMenus.InventoryMenu);
+            }
         }
 
         public bool CharacterAtPosition(Coordinates Coordinates, out Character ret)
@@ -188,6 +209,36 @@ namespace DarkNights
             Wall wall = new Wall(Coordinates);
             Walls.Add(wall);
             OnWallBuilt?.Invoke(wall);
+        }
+    }
+
+    public interface ISelectable
+    {
+        Vector2 Position { get; }
+    }
+
+    public class SelectionOverlay
+    {
+        public ISelectable Selected { get; private set; }
+        private Sprite2D sprite;
+
+        public SelectionOverlay()
+        {
+            sprite = new Sprite2D(AssetManager.Get.LoadTexture($"{AssetManager.SpriteRoot}/interface"),
+                new Rectangle(0, 0, 64, 64));
+        }
+
+        public void Draw()
+        {
+            if (Selected != null)
+            {
+                SpriteBatchRenderer.Get.DrawSprite(sprite, Selected.Position, 0);
+            }
+        }
+
+        public void Select(ISelectable selectable)
+        {
+            Selected = selectable;
         }
     }
 

@@ -16,6 +16,10 @@ namespace Nebula.Input
         public const EventHandle pointerUp = EventHandle.PointerUp;
         public const EventHandle pointerDown = EventHandle.PointerDown;
         public const EventHandle pointerClick = EventHandle.PointerClick;
+        public const EventHandle pointerDrag = EventHandle.PointerDrag;
+        public const EventHandle pointerDrop = EventHandle.PointerDrop;
+        public const EventHandle pointerEndDrag = EventHandle.PointerEndDrag;
+        public const EventHandle pointerBeginDrag = EventHandle.PointerBeginDrag;
 
         public enum EventHandle
         {
@@ -23,7 +27,11 @@ namespace Nebula.Input
             PointerDown,
             PointerClick,
             PointerEnter,
-            PointerExit
+            PointerExit,
+            PointerBeginDrag,
+            PointerDrag,
+            PointerEndDrag,
+            PointerDrop,
         }
 
         public static IPointerEventType ExecuteHierarchy<IPointerEventType>(IPointerEventListener[] Listeners, MouseButtonActionState Data, EventHandle Event) where IPointerEventType : IPointerEventBase
@@ -57,6 +65,15 @@ namespace Nebula.Input
                         break;
                     case EventHandle.PointerExit:
                         if (cur is IPointerExitHandler _exitHandle){ _triggered = _exitHandle.PointerExit(Data); }
+                        break;
+                    case EventHandle.PointerBeginDrag:
+                        if (cur is IPointerDragHandler _dragBeginHandle) { _triggered = _dragBeginHandle.PointerBeginDrag(Data); }
+                        break;
+                    case EventHandle.PointerDrag:
+                        if (cur is IPointerDragHandler _dragHandle) { _triggered = _dragHandle.PointerDrag(Data); }
+                        break;
+                    case EventHandle.PointerEndDrag:
+                        if (cur is IPointerDragHandler _dragEndHandle) { _triggered = _dragEndHandle.PointerEndDrag(Data); }
                         break;
                     default:
                         break;
@@ -116,6 +133,15 @@ namespace Nebula.Input
                     case EventHandle.PointerExit:
                         if (cur is IPointerExitHandler _exitHandle) { return (IPointerEventType)cur; }
                         break;
+                    case EventHandle.PointerBeginDrag:
+                        if (cur is IPointerDragHandler _dragBeginHandle) { return (IPointerEventType)cur; }
+                        break;
+                    case EventHandle.PointerDrag:
+                        if (cur is IPointerDragHandler _dragHandle) { return (IPointerEventType)cur; }
+                        break;
+                    case EventHandle.PointerEndDrag:
+                        if (cur is IPointerDragHandler _dragEndHandle) { return (IPointerEventType)cur; }
+                        break;
                     default:
                         break;
                 }
@@ -158,6 +184,15 @@ namespace Nebula.Input
                     break;
                 case EventHandle.PointerExit:
                     if (Event is IPointerExitHandler _exitHandle) { _triggered = _exitHandle.PointerExit(Data); }
+                    break;
+                case EventHandle.PointerBeginDrag:
+                    if (Event is IPointerDragHandler _dragBeginHandle) { _triggered = _dragBeginHandle.PointerBeginDrag(Data); }
+                    break;
+                case EventHandle.PointerDrag:
+                    if (Event is IPointerDragHandler _dragHandle) { _triggered = _dragHandle.PointerDrag(Data); }
+                    break;
+                case EventHandle.PointerEndDrag:
+                    if (Event is IPointerDragHandler _dragEndHandle) { _triggered = _dragEndHandle.PointerEndDrag(Data); }
                     break;
                 default:
                     break;

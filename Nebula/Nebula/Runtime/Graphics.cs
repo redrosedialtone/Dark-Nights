@@ -90,6 +90,7 @@ namespace Nebula.Main
             GraphicsDevice.SetRenderTarget(mainRenderTarget);
             GraphicsDevice.Clear(ClearOptions.Target, new Color(200, 200, 200), 1.0f, 0);
             SpriteBatchRenderer.Get.StartDraw();
+            UserInterface.Get.StartDraw();
         }
 
         public void DrawToDebug()
@@ -106,11 +107,9 @@ namespace Nebula.Main
         public void PostDraw()
         {
             Debug.Draw();
-            SpriteBatchRenderer.Get.FinishDraw();
-            _uiBatch.Begin(SpriteSortMode.FrontToBack, BlendState.AlphaBlend);
             DrawToDebug();
-            _uiBatch.End();
-
+            SpriteBatchRenderer.Get.FinishDraw();
+            UserInterface.Get.EndDraw();
 
             GraphicsDevice.SetRenderTarget(null);
             GraphicsDevice.Clear(ClearOptions.Target, new Color(200, 200, 200), 1.0f, 0);

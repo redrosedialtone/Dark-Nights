@@ -13,7 +13,7 @@ namespace DarkNights
 {
 
 
-    public class Character : IEntity, IWorker
+    public class Character : IEntity, IWorker, ISelectable
     {
         public string Name { get; private set; }
         public Coordinates Coordinates => Movement.Coordinates;
@@ -36,7 +36,7 @@ namespace DarkNights
             Movement.SetPosition(Coordinates);
             Movement.Clearance = 2;
 
-            Inventory = new EntityInventory();
+            Inventory = new EntityInventory(this);
 
             this.Name = Name;
             Sprite = new Sprite2D(AssetManager.Get.LoadTexture($"{AssetManager.SpriteRoot}/Jerry"),

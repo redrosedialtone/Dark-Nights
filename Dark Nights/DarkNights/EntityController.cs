@@ -79,12 +79,26 @@ namespace DarkNights
             return false;
         }
 
-        public bool MoveItemIntoInventory(IItem item, EntityInventory Inventory)
+        public bool MoveWorldItemIntoInventory(IItem item, EntityInventory Inventory)
         {
-            if (Inventory.CanPickupItem(item))
+            if (!(item.Coordinates.AdjacentTo(Inventory.Entity.Coordinates))) return false;
+            if (!item.IsInInventory && Inventory.CanPickupItem(item))
             {
                 Inventory.AddItem(item);
                 RemoveEntityFromWorld(item);
+                return true;
+            }
+            return false;
+        }
+
+        public bool MoveInventoryItemIntoWorld(IItem item, EntityInventory Inventory, Coordinates tile)
+        {
+            if (!(Inventory.Entity.Coordinates.AdjacentTo(tile))) return false;
+            if (item.IsInInventory && Inventory.CanDropItem(item))
+            {
+                Inventory.RemoveItem(item);
+                item.Position = tile;
+                PlaceEntityInWorld(item);
                 return true;
             }
             return false;

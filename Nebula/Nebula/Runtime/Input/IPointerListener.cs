@@ -41,5 +41,15 @@ namespace Nebula.Input
         public bool PointerClick(MouseButtonActionState Data);
     }
 
+    public interface IPointerDragHandler : IPointerEventBase
+    {
+        public bool PointerBeginDrag(MouseButtonActionState Data);
+        public bool PointerDrag(MouseButtonActionState Data);
+        public bool PointerEndDrag(MouseButtonActionState Data);
+    }
 
+    public interface IPointerDropHandler : IPointerEventBase
+    {
+        public bool PointerDrop(MouseButtonActionState Data);
+    }
 }
