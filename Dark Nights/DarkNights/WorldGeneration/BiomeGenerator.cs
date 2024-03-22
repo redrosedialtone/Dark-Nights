@@ -12,20 +12,21 @@ namespace DarkNights.WorldGeneration
 {
     public class BiomeGenerator
     {
-        public int Seed { get; }
+        private NoiseMapping MapMaker = new NoiseMapping();
+
+        public int Seed => World.SEED;
         public float Resolution { get; }
         IBiome[] activeBiomes;
         public Dictionary<int, float> MyFertilityMap { get; private set; }
 
-        public BiomeGenerator(IBiome[] activeBiomes, int Seed, float Resolution)
+        public BiomeGenerator(IBiome[] activeBiomes, float Resolution)
         {
             this.activeBiomes = activeBiomes;
-            this.Seed = Seed;
             this.Resolution = Resolution;
         }
         public void Generate(IEnumerable<Chunk> cells)
         {
-            MyFertilityMap = FertilityMap(cells);
+            MyFertilityMap = MapMaker.PerlinMap(Seed, cells, Resolution);
             var biomeMap = new Dictionary<int, IBiome>();
             var conditionMap = new Dictionary<int, BiomeConditions>();
 
@@ -50,21 +51,6 @@ namespace DarkNights.WorldGeneration
                 kv.Value.Generate(WorldSystem.Get.World.ChunkUnsf(kv.Key));
             }
         }
-
-        public Dictionary<int,float> FertilityMap(IEnumerable<Chunk> cells)
-        {
-            FastNoiseLite noise = new FastNoiseLite(Seed);
-            noise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
-
-            var noiseMap = new Dictionary<int, float>();
-            foreach (var cell in cells)
-            {
-                var fert = noise.GetNoise(cell.ChunkCoordinates.X * Resolution, cell.ChunkCoordinates.Y * Resolution);
-                noiseMap[cell.GetHashCode()] = fert;
-            }
-            return noiseMap;
-        }
-
 
     }
 }
