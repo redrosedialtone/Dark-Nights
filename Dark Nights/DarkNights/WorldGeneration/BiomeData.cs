@@ -37,44 +37,89 @@ namespace DarkNights.WorldGeneration
 
     public class TemperateWoods : IBiome
     {
+        private NoiseMapping MapMaker = new NoiseMapping();
         private float Fertility;
-        private float TreeChance;
-        private float ShrubChance = 0.05f;
-        private float SaplingChance = 0.04f;
-        public TemperateWoods(float TreeRate = 0.03f, float Fertility = 0.5f)
+        private int TreeChance = 3;
+        private int ShrubChance = 1;
+        private int SaplingChance = 1;
+        private int EmptyChance = 10;
+        private int TotalChance;
+        enum BiomeObjects
         {
-            this.TreeChance = TreeRate;
+            empty = 0,
+            tree = 1,
+            shrub = 2,
+            sapling = 3
+        }
+        private BiomeObjects[] RandomBag;
+        public TemperateWoods(float Fertility = 0.5f)
+        {
+            List<BiomeObjects> tmpBag = new List<BiomeObjects>();
+            for (int i = 0; i < TreeChance; i++)
+            {
+                tmpBag.Add(BiomeObjects.tree);
+            }
+            for (int i = 0;i < ShrubChance; i++)
+            {
+                tmpBag.Add(BiomeObjects.shrub);
+            }
+            for (int i = 0; i <= SaplingChance; i++)
+            {
+                tmpBag.Add(BiomeObjects.sapling);
+            }
+            for(int i = 0; i < EmptyChance; i++)
+            {
+                tmpBag.Add(BiomeObjects.empty);
+            }
+            RandomBag = tmpBag.ToArray();
+
             this.Fertility = Fertility;
         }
         public void Generate(Chunk cell)
         {
+            var Distribution = MapMaker.PerlinMap(World.SEED, cell, World.CHUNK_SIZE);
             WorldSystem.log.Debug($"{cell} I am green and woody");
-            Random r = new Random(World.SEED);
-
-            IEntity[] trees = new IEntity[50];
+            var chunkTileCount = Defs.ChunkSize * Defs.ChunkSize;
+            IEntity[] Entities = new IEntity[chunkTileCount];
             int tIndx = 0;
             foreach (var tile in cell.Tiles())
             {
-                var chance = r.NextDouble();
-                if (chance <= TreeChance)
-                {
-                    trees[tIndx++] = new Tree(tile);
-
-                }
-                else if (chance <= SaplingChance)
-                {
-                    trees[tIndx++] = new Sapling(tile);
-                }
-                else if (chance <= ShrubChance)
-                {
-                    if(chance >= 0.015) trees[tIndx++] = new Shrub1(tile);
-                    else trees[tIndx++] = new Shrub2(tile);
-
-                }
-                if (tIndx >= 50) break;
+                var weight = (Distribution.GetValueOrDefault(tile.GetHashCode()) + 1) * .5f;
+                IEntity terrain = SelectTerrain(tile, weight);
+                 
+                if(terrain != null) Entities[tIndx++] = terrain;
+                if (tIndx >= chunkTileCount) break;
             }
 
-            EntityController.Get.PlaceEntitiesInWorld(trees);
+            EntityController.Get.PlaceEntitiesInWorld(Entities);
+        }
+
+        private IEntity SelectTerrain(Coordinates tile, float weight)
+        {
+            if (weight >= 0.4f)
+            {
+                var val = RandomBag[WorldSystem.Get.World.RandomInteger(0, RandomBag.Length)];
+                switch (val)
+                {
+                    case (BiomeObjects.tree):
+                        {
+                            return new Tree(tile);
+                        }
+                    case (BiomeObjects.shrub):
+                        {
+                            return new Shrub1(tile);
+                        }
+                    case (BiomeObjects.sapling): 
+                        {
+                            return new Sapling(tile);
+                        }
+                    case (BiomeObjects.empty):
+                        {
+                            return null;
+                        }
+                }
+            }
+            return null;
         }
 
         public float MatchConditions(BiomeConditions conditions)

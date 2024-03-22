@@ -28,18 +28,20 @@ namespace DarkNights
         private BiomeGenerator biomeGenerator;
         #endregion
 
-        public static int SEED;
+        public static int SEED => m_seed;
+        private static int m_seed = 0;
         public (int X, int Y) Minimum;
         public (int X, int Y) Maximum;
         public static int CHUNK_SIZE => Defs.ChunkSize;
         public (int X, int Y) Size => ((Maximum.X - Minimum.X), (Maximum.Y - Minimum.Y));
         public Coordinates MinimumTile => new Coordinates(Minimum.X * CHUNK_SIZE, Minimum.Y * CHUNK_SIZE);
         public Coordinates MaximumTile => new Coordinates(Maximum.X * CHUNK_SIZE, Maximum.Y * CHUNK_SIZE);
+        private Random random = new Random(World.SEED);
 
         private readonly Dictionary<int, Chunk> allChunks;
         public World(int seed, int width, int height)
         {
-            SEED = seed;
+            m_seed = seed;
             allChunks = new Dictionary<int, Chunk>();
             float _halfWidth = width / 2;
             float _halfHeight = height / 2;
@@ -50,7 +52,7 @@ namespace DarkNights
             biomes.Add(new TemperateGrasslands());
             biomes.Add(new TemperateWoods());
             biomes.Add(new TemperateWoods());
-            biomeGenerator = new BiomeGenerator(biomes.ToArray(), seed, CHUNK_SIZE);
+            biomeGenerator = new BiomeGenerator(biomes.ToArray(), CHUNK_SIZE);
         }
 
         public void GenerateBiomeData()
@@ -100,6 +102,15 @@ namespace DarkNights
             return null;
         }
 
+
+        public double RandomValue()
+        {
+            return random.NextDouble();
+        }
+        public int RandomInteger(int min, int max)
+        {
+            return random.Next(min, max);
+        }
 
         public IEnumerable<Chunk> Chunks()
         {
