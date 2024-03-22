@@ -7,11 +7,18 @@ using static System.Net.Mime.MediaTypeNames;
 
 namespace Nebula
 {
-    public class Sprite2D
+    public interface ISprite
+    {
+        public Texture2D Texture { get;  }
+        public Vector2 Pivot { get;  }
+        public Rectangle? SourceRect { get; }
+    }
+
+    public class Sprite2D : ISprite
     {
         public Texture2D Texture { get; private set; }
         public Vector2 Pivot { get; private set; }
-        public Rectangle SourceRect { get; private set; }
+        public Rectangle? SourceRect { get; private set; }
 
         public Sprite2D(Texture2D texture, Rectangle sourceRect)
         {
@@ -30,15 +37,16 @@ namespace Nebula
         public Vector2 WidthHeightToVector2()
         {
             Vector2 widthheight = Vector2.Zero;
-
-            widthheight.X = SourceRect.Width;
-            widthheight.Y = SourceRect.Height;
-
+            if(SourceRect != null)
+            {
+                widthheight.X = SourceRect.Value.Width;
+                widthheight.Y = SourceRect.Value.Height;
+            }
             return widthheight;
         }
     }
 
-    public class ExpandableTexture
+    public class ExpandableTexture : ISprite
     {
         public Texture2D Texture { get; protected set; }
         public Vector2 Pivot { get; private set; }

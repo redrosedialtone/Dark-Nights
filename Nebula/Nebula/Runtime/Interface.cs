@@ -30,6 +30,8 @@ namespace Nebula.Main
         private static UserInterface instance = null;
         public SpriteBatch Batch => Graphics.UIBatch;
 
+        private static SpriteFont defaultFont;
+
         public void Create(NebulaRuntime game)
         {
 
@@ -57,7 +59,7 @@ namespace Nebula.Main
 
         public void LoadContent()
         {
-            
+            defaultFont = Resources.Load<SpriteFont>("FONT/Constantina");
         }
 
         public void UnloadContent()
@@ -68,6 +70,21 @@ namespace Nebula.Main
         public void Update(GameTime gameTime)
         {
             return;
+        }
+
+        public void DrawText(SpriteFont spriteFont, string text, Vector2 position, Color color, float layer)
+        {
+            DrawText(spriteFont, text, position, color, 0f, Vector2.Zero, 1.0f, SpriteEffects.None, 1.0f);
+        }
+
+        public void DrawText(string text, Vector2 position, Color color, float scale = 1f)
+        {
+            DrawText(defaultFont, text, position, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 1.0f);
+        }
+
+        private void DrawText(SpriteFont spriteFont, string text, Vector2 position, Color color, float rotation, Vector2 origin, float scale, SpriteEffects effects, float layer)
+        {
+            Batch.DrawString(spriteFont, text, position, color, rotation, origin, scale, effects, layer);
         }
 
         public void DrawUI(Texture2D texture, Rectangle destRect, Rectangle? sourceRect, Color color, float rotation, Vector2 origin, bool absOrigin, bool flippedX, bool flippedY)

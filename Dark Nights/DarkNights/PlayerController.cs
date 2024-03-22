@@ -169,6 +169,14 @@ namespace DarkNights
             
         }
 
+        private bool constructionMode = false;
+
+        public void ToggleConstruction()
+        {
+            constructionMode = !constructionMode;
+            InterfaceController.Get.InventoryMenu.ConstructionModeToggle = constructionMode;
+        }
+
         public void SelectCharacter(Character character)
         {
             if (selectedCharacter == character) return;

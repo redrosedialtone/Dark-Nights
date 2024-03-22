@@ -12,13 +12,16 @@ namespace DarkNights.Interface
 {
     public class InventoryMenu : MenuBase
     {
-        //
+        public bool ConstructionModeToggle;
+        // Inventory
         private EntityInventory m_selected;
         // Hands
         private InventorySlot leftHandSlot;
         private InventorySlot rightHandSlot;
         // Slots
         private InventorySlot backpackSlot;
+        // Construction toggle
+        private ConstructionButton constructionButton;
 
 
         public InventoryMenu()
@@ -35,6 +38,7 @@ namespace DarkNights.Interface
             leftHandSlot = new InventorySlot(new Rectangle(10, Graphics.RENDER_HEIGHT - 74, 64, 64), background, outlineL);
             rightHandSlot = new InventorySlot(new Rectangle(74, Graphics.RENDER_HEIGHT - 74, 64, 64), background, outlineR);
             backpackSlot = new InventorySlot(new Rectangle(158, Graphics.RENDER_HEIGHT - 74, 64, 64), background, outlineB);
+            constructionButton = new ConstructionButton(new Rectangle(254, Graphics.RENDER_HEIGHT - 74, 64, 64));
         }
 
         public void Set(EntityInventory inventory)
@@ -60,6 +64,12 @@ namespace DarkNights.Interface
                 leftHandSlot.Draw();
                 rightHandSlot.Draw();
                 backpackSlot.Draw();
+                constructionButton.Draw();
+
+                if (ConstructionModeToggle)
+                {
+                    UserInterface.Get.DrawText("CONSTRUCTION MODE", new Vector2(314, Graphics.RENDER_HEIGHT - 74), Color.White);
+                }
             }
         }
 
@@ -70,6 +80,7 @@ namespace DarkNights.Interface
                 leftHandSlot.Tick();
                 rightHandSlot.Tick();
                 backpackSlot.Tick();
+                constructionButton.Tick();
             }
         }
 
@@ -78,6 +89,7 @@ namespace DarkNights.Interface
             leftHandSlot.Enable();
             rightHandSlot.Enable();
             backpackSlot.Enable();
+            constructionButton.Enable();
             return base.OpenMenu();
         }
 
@@ -86,6 +98,7 @@ namespace DarkNights.Interface
             leftHandSlot.Disable();
             rightHandSlot.Disable();
             backpackSlot.Disable();
+            constructionButton.Disable();
             return base.CloseMenu();
         }
 
@@ -107,6 +120,11 @@ namespace DarkNights.Interface
             }
         }
 
+        public void ToggleConstruction()
+        {
+            PlayerController.Get.ToggleConstruction();
+        }
+
         private void SetInventoryUpdate()
         {
             if (m_selected == null) return;
@@ -119,9 +137,6 @@ namespace DarkNights.Interface
     public class InventorySlot
     {
         public Rectangle Bounds { get; private set; }
-
-        public IPointerEventListener Parent => null;
-        public IPointerEventListener[] Children => null;
 
         private InterfaceButton button;
         private Sprite2D itemSprite;
@@ -138,6 +153,9 @@ namespace DarkNights.Interface
 
             itemRect = new Rectangle(Bounds.X + 4, Bounds.Y + 4, Bounds.Width - 8, Bounds.Height - 8);
             button = new InterfaceButton(Bounds,
+                new Sprite2D(AssetManager.Get.LoadTexture($"{AssetManager.SpriteRoot}/interface"),
+                new Rectangle(128, 0, 64, 64)),
+                new Color(255,255,255,0),
                 new Color(255, 255, 255, 50),
                 new Color(255, 255, 255, 40),
                 new Color(255, 255, 255, 30),
@@ -188,6 +206,66 @@ namespace DarkNights.Interface
         public void EndDrag(InterfaceButton button, MouseButtonActionState data)
         {
             InterfaceController.Get.InventoryMenu.DropItem(this, data.mousePosition.ToVector2());
+        }
+    }
+
+    public class ConstructionButton
+    {
+        public Rectangle Bounds { get; private set; }
+
+        private ExpandableTexture outline;
+        private ExpandableTexture icon;
+
+        private InterfaceButton button;
+        private Rectangle innerBounds;
+
+        public ConstructionButton(Rectangle bounds)
+        {
+            this.Bounds = bounds;
+            innerBounds = new Rectangle(Bounds.X + 4, Bounds.Y + 4, Bounds.Width - 8, Bounds.Height - 8);
+
+
+            outline = new ExpandableTexture(AssetManager.Get.LoadTexture($"{AssetManager.SpriteRoot}/interface"),
+                new Rectangle(192, 64, 64, 64), 2, 2, 2, 2);
+            icon = new ExpandableTexture(AssetManager.Get.LoadTexture($"{AssetManager.SpriteRoot}/interface"),
+                new Rectangle(192, 0, 64, 64), 0, 0, 0, 0);
+
+            button = new InterfaceButton(Bounds,
+                icon,
+                new Color(0,0,0,0),
+                new Color(150, 150, 150, 150),
+                new Color(175, 175, 175, 175),
+                new Color(225, 225, 225, 225),
+                new Color(255, 255, 255, 255),
+                new Color(50, 50, 50, 25));
+            button.Interactable = true;
+            button.OnClicked += OnClick;
+        }
+
+        public void Draw()
+        {
+            UserInterface.Get.DrawSlicedSprite(outline, Bounds, Color.White);
+            button.Draw();
+        }
+
+        public void Tick()
+        {
+            button.Tick();
+        }
+
+        public void Enable()
+        {
+            button.SetActive(true);
+        }
+
+        public void Disable()
+        {
+            button.SetActive(false);
+        }
+
+        public void OnClick(InterfaceButton button, MouseButtonActionState data)
+        {
+            InterfaceController.Get.InventoryMenu.ToggleConstruction();
         }
     }
 }

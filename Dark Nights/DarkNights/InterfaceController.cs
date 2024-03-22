@@ -173,6 +173,7 @@ namespace DarkNights
     public class InterfaceButton : IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler,
         IPointerDownHandler, IPointerUpHandler, IPointerDragHandler
     {
+        public ISprite Texture { get; private set; }
         public Rectangle Bounds { get; private set; }
         public IPointerEventListener Parent { get; private set; }
         public IPointerEventListener[] Children { get; private set; }
@@ -190,12 +191,11 @@ namespace DarkNights
         protected Color UIHighlight { get; }
         protected Color UIDisabled { get; }
 
-        protected virtual Color CurrentState { get; } = new Color(255, 255, 255, 0);
+        protected virtual Color BaseColor { get; } = new Color(255, 255, 255, 0);
         protected bool IsFocused = false;
         protected bool interactable = true;
         protected bool checkState = false;
 
-        private Sprite2D highlight;
         private const float fadeTime = 0.25f;
         private float currentTime;
         private float setTime;
@@ -236,21 +236,20 @@ namespace DarkNights
             }
         }
 
-        public InterfaceButton(Rectangle bounds)
+        public InterfaceButton(Rectangle bounds, ISprite texture)
         {
             this.Bounds = bounds;
-            this.highlight = new Sprite2D(AssetManager.Get.LoadTexture($"{AssetManager.SpriteRoot}/interface"),
-                new Rectangle(128, 0, 64, 64));
+
             Input.AddPointerEventListener(this);
+            Texture = texture;
         }
 
-        public InterfaceButton(Rectangle bounds, Color pressed, Color selected, Color highlighted, Color inactive, Color disabled)
+        public InterfaceButton(Rectangle bounds, ISprite texture, Color color, Color pressed, Color selected, Color highlighted, Color inactive, Color disabled)
         {
             this.Bounds = bounds;
-            this.highlight = new Sprite2D(AssetManager.Get.LoadTexture($"{AssetManager.SpriteRoot}/interface"),
-                new Rectangle(128, 0, 64, 64));
+            this.Texture = texture;
 
-
+            this.BaseColor = color;
             this.UIPressed = pressed;
             this.UISelected = selected;
             this.UIHighlight = highlighted;
@@ -305,7 +304,7 @@ namespace DarkNights
                 currentColour = UIInactive;
                 return;
             }
-            setColour = new Color((byte)(CurrentState.R + Colour.R), (byte)(CurrentState.G + Colour.G), (byte)(CurrentState.B + Colour.B), (byte)(CurrentState.A + Colour.A));
+            setColour = new Color((byte)(BaseColor.R + Colour.R), (byte)(BaseColor.G + Colour.G), (byte)(BaseColor.B + Colour.B), (byte)(BaseColor.A + Colour.A));
 
             currentTime = 0;
             setTime = time;
@@ -336,7 +335,10 @@ namespace DarkNights
 
         public void Draw()
         {
-            UserInterface.Get.DrawUI(highlight.Texture, Bounds, highlight.SourceRect, currentColour, 0, Vector2.Zero, false, false, false);
+            if (active)
+            {
+                UserInterface.Get.DrawUI(Texture.Texture, Bounds, Texture.SourceRect, currentColour, 0, Vector2.Zero, false, false, false);
+            }
         }
 
         public virtual void UpdateState(bool forceCheckFocus = false)
